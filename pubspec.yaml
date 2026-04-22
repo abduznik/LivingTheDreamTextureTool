@@ -1,4 +1,4 @@
-name: living_the_dream_texture_tool
+name: living_the_dream_texture_editor
 description: "A Flutter desktop tool for importing and processing textures."
 publish_to: 'none'
 
@@ -31,6 +31,18 @@ dev_dependencies:
   custom_lint: ^0.8.1
   riverpod_lint: ^3.1.0
   inno_bundle: ^0.10.1
+  flutter_launcher_icons: ^0.14.3
+
+flutter_launcher_icons:
+  image_path: "logo.png"
+  macos:
+    image_path: "logo.png"
+  windows:
+    generate: true
+    image_path: "logo.png"
+  linux:
+    generate: true
+    image_path: "logo.png"
 
 inno_bundle:
   id: fd158e1d-6036-4bea-a605-38bc3495baec
