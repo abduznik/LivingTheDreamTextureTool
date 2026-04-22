@@ -47,8 +47,6 @@ flutter_launcher_icons:
 inno_bundle:
   id: fd158e1d-6036-4bea-a605-38bc3495baec
   name: "Living The Dream Texture Editor"
-  executable_name: "LivingTheDreamTextureEditor"
-  install_dir_name: "LivingTheDreamTextureEditor"
   publisher: "abduznik"
   maintainer: "abduznik <https://github.com/abduznik>"
   languages:
