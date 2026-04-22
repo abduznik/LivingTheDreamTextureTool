@@ -37,8 +37,20 @@ class AutoLoadNotifier extends Notifier<bool> {
 
 final autoLoadProvider = NotifierProvider<AutoLoadNotifier, bool>(AutoLoadNotifier.new);
 
-final ugcEntriesProvider = FutureProvider<List<UgcTextureEntry>>((ref) async {
-  final path = ref.watch(selectedPathProvider);
-  if (path == null) return [];
-  return EmulatorScanner.scanFolder(path);
-});
+final ugcEntriesProvider = AsyncNotifierProvider<UgcEntriesNotifier, List<UgcTextureEntry>>(UgcEntriesNotifier.new);
+
+class UgcEntriesNotifier extends AsyncNotifier<List<UgcTextureEntry>> {
+  @override
+  Future<List<UgcTextureEntry>> build() async {
+    final path = ref.watch(selectedPathProvider);
+    if (path == null) return [];
+    return EmulatorScanner.scanFolder(path);
+  }
+
+  Future<void> refresh() async {
+    final path = ref.read(selectedPathProvider);
+    if (path == null) return;
+    state = const AsyncValue.loading();
+    state = await AsyncValue.guard(() async => EmulatorScanner.scanFolder(path));
+  }
+}

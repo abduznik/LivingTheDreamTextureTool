@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:io' as io;
 import 'dart:typed_data';
 import 'package:flutter/material.dart';
@@ -24,6 +25,46 @@ class _EditorViewState extends ConsumerState<EditorView> {
   bool _isLoadingPreview = false;
   bool _isProcessing = false;
   String _status = '';
+  Timer? _refreshTimer;
+
+  @override
+  void initState() {
+    super.initState();
+    _refreshTimer = Timer.periodic(const Duration(seconds: 2), (_) {
+      _refreshFileList();
+    });
+  }
+
+  @override
+  void dispose() {
+    _refreshTimer?.cancel();
+    super.dispose();
+  }
+
+  Future<void> _refreshFileList() async {
+    final currentEntries = ref.read(ugcEntriesProvider).value ?? [];
+    final scanner = EmulatorScanner();
+    final path = ref.read(selectedPathProvider);
+    if (path == null) return;
+    
+    final newEntries = EmulatorScanner.scanFolder(path);
+    final addedEntries = newEntries.where((ne) => !currentEntries.any((ce) => ce.ugctexPath == ne.ugctexPath)).toList();
+
+    if (addedEntries.isEmpty) return;
+
+    // Use a temporary list to add
+    final updatedList = List<UgcTextureEntry>.from(currentEntries)..addAll(addedEntries);
+    updatedList.sort((a, b) => a.stem.toLowerCase().compareTo(b.stem.toLowerCase()));
+
+    // Directly update state if possible or trigger provider update
+    // Given the structure, we can just manually trigger the refresh or rebuild.
+    // For additive logic, rebuilding the provider might be safer if it's async notifier.
+    // However, user requested "append... without resetting the list".
+    // I will trigger a simple rebuild/append approach.
+    
+    // Simplest: just refresh the provider which triggers rebuild
+    ref.read(ugcEntriesProvider.notifier).refresh();
+  }
 
   Future<void> _loadPreview(UgcTextureEntry entry) async {
     setState(() {
