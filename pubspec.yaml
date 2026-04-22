@@ -53,7 +53,7 @@ inno_bundle:
   app:
     name: "LivingTheDream Texture Tool"
     description: "Texture import and processing tool"
-    executable_name: "living_the_dream_texture_tool"
+    executable_name: "LivingTheDreamTextureEditor"
     url: "https://github.com/abduznik/LivingTheDreamTextureTool"
     install_dir_name: "LivingTheDreamTextureTool"
 

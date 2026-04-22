@@ -90,12 +90,11 @@ BEGIN
         BLOCK "040904e4"
         BEGIN
             VALUE "CompanyName", "com.abduznik" "\0"
-            VALUE "FileDescription", "living_the_dream_toolkit" "\0"
-            VALUE "FileVersion", VERSION_AS_STRING "\0"
-            VALUE "InternalName", "living_the_dream_toolkit" "\0"
+            VALUE "FileDescription", "Living The Dream Texture Editor" "\0"
+            VALUE "InternalName", "LivingTheDreamTextureEditor" "\0"
             VALUE "LegalCopyright", "Copyright (C) 2026 com.abduznik. All rights reserved." "\0"
-            VALUE "OriginalFilename", "living_the_dream_toolkit.exe" "\0"
-            VALUE "ProductName", "living_the_dream_toolkit" "\0"
+            VALUE "OriginalFilename", "LivingTheDreamTextureEditor.exe" "\0"
+            VALUE "ProductName", "Living The Dream Texture Editor" "\0"
             VALUE "ProductVersion", VERSION_AS_STRING "\0"
         END
     END
