@@ -11,6 +11,7 @@ import '../../services/texture_processor.dart';
 import '../../services/backup_service.dart';
 import '../utils/image_editor_helper.dart';
 import 'settings_view.dart';
+import '../../services/emulator_scanner.dart';
 
 class EditorView extends ConsumerStatefulWidget {
   const EditorView({super.key});
