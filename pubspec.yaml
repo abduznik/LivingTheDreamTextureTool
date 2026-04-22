@@ -55,7 +55,7 @@ inno_bundle:
     description: "Texture import and processing tool"
     executable_name: "LivingTheDreamTextureEditor"
     url: "https://github.com/abduznik/LivingTheDreamTextureTool"
-    install_dir_name: "LivingTheDreamTextureTool"
+    install_dir_name: "LivingTheDreamTextureEditor"
 
 flutter:
   uses-material-design: true
