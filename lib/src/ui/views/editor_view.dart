@@ -44,7 +44,6 @@ class _EditorViewState extends ConsumerState<EditorView> {
 
   Future<void> _refreshFileList() async {
     final currentEntries = ref.read(ugcEntriesProvider).value ?? [];
-    final scanner = EmulatorScanner();
     final path = ref.read(selectedPathProvider);
     if (path == null) return;
     
