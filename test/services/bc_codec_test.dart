@@ -1,6 +1,6 @@
 import 'dart:typed_data';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:living_the_dream_toolkit/src/services/bc_codec.dart';
+import 'package:living_the_dream_texture_tool/src/services/bc_codec.dart';
 
 void main() {
   group('BcCodec', () {
