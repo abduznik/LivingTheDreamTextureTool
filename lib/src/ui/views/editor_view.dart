@@ -195,7 +195,7 @@ class _EditorViewState extends ConsumerState<EditorView> {
     return Scaffold(
       backgroundColor: Colors.transparent,
       appBar: AppBar(
-        title: const Text('Texture Editor'),
+        title: const Text('Living The Dream Texture Editor'),
         backgroundColor: Colors.black.withAlpha(128),
         actions: [
           IconButton(
