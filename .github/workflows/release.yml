@@ -1,0 +1,191 @@
+name: Build and Release
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Version tag (e.g. v1.0.0)'
+        required: true
+        default: 'v1.0.0'
+      build_linux:
+        description: 'Build Linux?'
+        type: boolean
+        default: true
+      build_windows:
+        description: 'Build Windows?'
+        type: boolean
+        default: true
+      build_macos:
+        description: 'Build macOS?'
+        type: boolean
+        default: true
+
+jobs:
+  build_linux:
+    name: Build Linux
+    if: ${{ inputs.build_linux }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: 'stable'
+          cache: true
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libgtk-3-dev libblkid-dev liblzma-dev libsecret-1-dev
+          flutter pub get
+      - name: Build Linux
+        run: flutter build linux --release --build-name=${{ github.event.inputs.version }} --build-number=${{ github.run_number }}
+      - name: Package Linux
+        run: |
+          cd build/linux/x64/release/bundle
+          tar -czvf ../../../../../livingthedream-linux-x64.tar.gz .
+      - name: Build AppImage
+        run: |
+          # Install appimagetool
+          sudo wget https://github.com/AppImage/AppImageKit/releases/download/continuous/appimagetool-x86_64.AppImage -O /usr/local/bin/appimagetool
+          sudo chmod +x /usr/local/bin/appimagetool
+
+          # Prepare AppDir
+          mkdir -p AppDir/usr/bin
+          mkdir -p AppDir/usr/share/applications
+          mkdir -p AppDir/usr/share/icons/hicolor/256x256/apps
+          
+          cp -r build/linux/x64/release/bundle/* AppDir/usr/bin/
+          
+          # Create Desktop Entry
+          cat > AppDir/usr/share/applications/livingthedream.desktop <<EOF
+          [Desktop Entry]
+          Name=LivingTheDreamTextureTool
+          Exec=livingthedream
+          Icon=livingthedream
+          Type=Application
+          Categories=Utility;
+          EOF
+          
+          # Use icon
+          cp web/icons/Icon-192.png AppDir/usr/share/icons/hicolor/256x256/apps/livingthedream.png
+          cp web/icons/Icon-192.png AppDir/livingthedream.png
+          
+          # Mandatory files for AppImage
+          cp AppDir/usr/share/applications/livingthedream.desktop AppDir/
+          ln -s usr/bin/livingthedream AppDir/AppRun
+          chmod +x AppDir/AppRun
+
+          # Build AppImage
+          ARCH=x86_64 /usr/local/bin/appimagetool --appimage-extract-and-run AppDir LivingTheDreamTextureTool-x86_64.AppImage
+      - name: Upload Linux Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: linux-release
+          path: |
+            livingthedream-linux-x64.tar.gz
+            LivingTheDreamTextureTool-x86_64.AppImage
+
+  build_windows:
+    name: Build Windows Installer
+    if: ${{ inputs.build_windows }}
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: 'stable'
+          cache: true
+      - name: Install dependencies
+        run: flutter pub get
+      - name: Build Windows Installer
+        run: dart run inno_bundle:build --release
+      - name: Upload Windows Installer
+        uses: actions/upload-artifact@v4
+        with:
+          name: windows-release
+          path: build/windows/x64/installer/Release/*.exe
+
+  build_macos:
+    name: Build macOS DMG
+    if: ${{ inputs.build_macos }}
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: 'stable'
+          cache: true
+      - name: Install dependencies
+        run: flutter pub get
+      - name: Build macOS
+        env:
+          FLUTTER_XCODE_CODE_SIGNING_ALLOWED: "NO"
+          FLUTTER_XCODE_CODE_SIGNING_REQUIRED: "NO"
+          FLUTTER_XCODE_CODE_SIGN_IDENTITY: ""
+        run: |
+          flutter build macos --release \
+            --build-name=${{ github.event.inputs.version }} \
+            --build-number=${{ github.run_number }}
+      - name: Ad-hoc sign macOS app
+        run: |
+          # Ad-hoc sign all frameworks and the app itself
+          find build/macos/Build/Products/Release/livingthedream.app/Contents/Frameworks -name "*.framework" -exec codesign --force --sign - {} + || true
+          find build/macos/Build/Products/Release/livingthedream.app/Contents/Frameworks -name "*.dylib" -exec codesign --force --sign - {} + || true
+          codesign --force --sign - build/macos/Build/Products/Release/livingthedream.app/Contents/MacOS/livingthedream
+          codesign --force --sign - build/macos/Build/Products/Release/livingthedream.app
+      - name: Create DMG
+        run: |
+          npx create-dmg build/macos/Build/Products/Release/livingthedream.app --overwrite --no-code-sign
+          mv *.dmg livingthedream-macos.dmg
+      - name: Upload macOS DMG
+        uses: actions/upload-artifact@v4
+        with:
+          name: macos-release
+          path: livingthedream-macos.dmg
+
+  release:
+    name: Create Release
+    needs: [build_linux, build_windows, build_macos]
+    if: always()
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Create artifacts directory
+        run: mkdir artifacts
+
+      - name: Download Linux Artifact
+        if: ${{ inputs.build_linux }}
+        uses: actions/download-artifact@v4
+        with:
+          name: linux-release
+          path: artifacts/
+          
+      - name: Download Windows Artifact
+        if: ${{ inputs.build_windows }}
+        uses: actions/download-artifact@v4
+        with:
+          name: windows-release
+          path: artifacts/
+          
+      - name: Download macOS Artifact
+        if: ${{ inputs.build_macos }}
+        uses: actions/download-artifact@v4
+        with:
+          name: macos-release
+          path: artifacts/
+
+      - name: Create Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ github.event.inputs.version }}
+          name: Release ${{ github.event.inputs.version }}
+          files: |
+            artifacts/livingthedream-linux-x64.tar.gz
+            artifacts/LivingTheDreamTextureTool-x86_64.AppImage
+            artifacts/*.exe
+            artifacts/livingthedream-macos.dmg
+          fail_on_unmatched_files: false
+          draft: false
+          prerelease: false
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
