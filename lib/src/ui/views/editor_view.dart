@@ -122,7 +122,7 @@ class _EditorViewState extends ConsumerState<EditorView> {
     if (_selectedEntry == null) return;
 
     final result = await FilePicker.pickFiles(
-      dialogTitle: 'Import PNG',
+      dialogTitle: 'Import Image',
       type: FileType.image,
     );
 
@@ -279,7 +279,7 @@ class _EditorViewState extends ConsumerState<EditorView> {
                                 textStyle: const TextStyle(fontSize: 18),
                               ),
                               icon: const Icon(Icons.upload, size: 28),
-                              label: const Text('Import PNG'),
+                              label: const Text('Import Image'),
                               onPressed: _selectedEntry == null || _isProcessing ? null : _importPng,
                             ),
                           ),
