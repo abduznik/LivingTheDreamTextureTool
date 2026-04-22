@@ -1,4 +1,4 @@
-name: living_the_dream_texture_editor
+name: LivingTheDreamTextureEditor
 description: "A Flutter desktop tool for importing and processing textures."
 publish_to: 'none'
 
@@ -45,7 +45,7 @@ flutter_launcher_icons:
     image_path: "logo.png"
 
 inno_bundle:
-  id: fd158e1d-6036-4bea-a605-38bc3495baec
+  id: 7512da16-c167-4530-bf3b-b6bd0bb7a20c
   name: "Living The Dream Texture Editor"
   publisher: "abduznik"
   maintainer: "abduznik <https://github.com/abduznik>"
