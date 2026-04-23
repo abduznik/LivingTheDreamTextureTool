@@ -17,7 +17,7 @@ class SettingsView extends ConsumerWidget {
       body: ListView(
         children: [
           ListTile(
-            title: const Text('Current UGC Folder'),
+            title: const Text('Resource Directory'),
             subtitle: Text(selectedPath ?? 'None selected'),
             trailing: Row(
               mainAxisSize: MainAxisSize.min,
@@ -26,7 +26,7 @@ class SettingsView extends ConsumerWidget {
                   icon: const Icon(Icons.folder_open),
                   onPressed: () async {
                     String? result = await FilePicker.getDirectoryPath(
-                      dialogTitle: 'Select Tomodachi Life UGC Folder',
+                      dialogTitle: 'Select Resource Directory',
                     );
                     if (result != null) {
                       ref.read(selectedPathProvider.notifier).setPath(result);
@@ -47,28 +47,24 @@ class SettingsView extends ConsumerWidget {
           const Padding(
             padding: EdgeInsets.all(16.0),
             child: Text(
-              'Emulator Base Paths (Future Use / Overrides)',
+              'About UTT',
               style: TextStyle(fontWeight: FontWeight.bold, color: Colors.blue),
             ),
           ),
           const ListTile(
-            title: Text('Eden Base Path'),
-            subtitle: Text('Auto-detected'),
+            title: Text('Version'),
+            subtitle: Text('1.0.0 (UTT Refactor)'),
           ),
           const ListTile(
-            title: Text('Ryujinx Base Path'),
-            subtitle: Text('Auto-detected'),
-          ),
-          const ListTile(
-            title: Text('Yuzu Base Path'),
-            subtitle: Text('Auto-detected'),
+            title: Text('Description'),
+            subtitle: Text('Universal Texture Toolkit for Tegra-compatible assets.'),
           ),
           const Divider(),
           Padding(
             padding: const EdgeInsets.all(16.0),
             child: ElevatedButton(
               onPressed: () => Navigator.pop(context),
-              child: const Text('Back to Home'),
+              child: const Text('Back'),
             ),
           ),
         ],

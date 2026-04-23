@@ -1,7 +1,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../services/settings_service.dart';
-import '../models/ugc_texture_entry.dart';
-import '../services/emulator_scanner.dart';
+import '../models/vrs_texture_entry.dart';
+import '../services/directory_processor.dart';
 
 final settingsServiceProvider = Provider<SettingsService>((ref) => throw UnimplementedError());
 
@@ -37,20 +37,20 @@ class AutoLoadNotifier extends Notifier<bool> {
 
 final autoLoadProvider = NotifierProvider<AutoLoadNotifier, bool>(AutoLoadNotifier.new);
 
-final ugcEntriesProvider = AsyncNotifierProvider<UgcEntriesNotifier, List<UgcTextureEntry>>(UgcEntriesNotifier.new);
+final vrsEntriesProvider = AsyncNotifierProvider<VrsEntriesNotifier, List<VrsTextureEntry>>(VrsEntriesNotifier.new);
 
-class UgcEntriesNotifier extends AsyncNotifier<List<UgcTextureEntry>> {
+class VrsEntriesNotifier extends AsyncNotifier<List<VrsTextureEntry>> {
   @override
-  Future<List<UgcTextureEntry>> build() async {
+  Future<List<VrsTextureEntry>> build() async {
     final path = ref.watch(selectedPathProvider);
     if (path == null) return [];
-    return EmulatorScanner.scanFolder(path);
+    return DirectoryProcessor.scanFolder(path);
   }
 
   Future<void> refresh() async {
     final path = ref.read(selectedPathProvider);
     if (path == null) return;
     state = const AsyncValue.loading();
-    state = await AsyncValue.guard(() async => EmulatorScanner.scanFolder(path));
+    state = await AsyncValue.guard(() async => DirectoryProcessor.scanFolder(path));
   }
 }

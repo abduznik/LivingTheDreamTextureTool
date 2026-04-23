@@ -1,65 +1,34 @@
-# LivingTheDream Texture Tool
+# Universal Texture Toolkit (UTT)
 
-A Flutter desktop application for importing, cropping, and processing textures
-for the LivingTheDream mod project. Ported from the original C# tool.
+Universal Texture Toolkit is a professional graphics utility designed for hardware-accelerated bit-manipulation and processing of textures for Tegra-compatible hardware architectures.
 
-## Features
+## Core Engineering Challenges
 
-- Image browser for selecting source textures from a local library
-- Built-in crop editor with freeform cropping and interactive crop handles
-- Smart upscaling: automatically resizes cropped images to 512x512 or 384x384
-  depending on source resolution
-- High-quality linear interpolation for clean resizing of hard-edged graphics
-- Light Gaussian blur pass after resize to reduce compression artifacts on edges
-- Texture export in the correct format for the game
-- Fully desktop-native: supports Windows, macOS, and Linux
+### 1. Manual Texture Swizzling
+One of the primary challenges addressed by UTT is the conversion between linear and block-linear (swizzled) memory layouts. The toolkit implements custom swizzling logic to handle the Tegra-specific block-linear layout, ensuring high-performance access and compatibility with hardware requirements.
 
-## Platform Support
+### 2. Bit-Level Texture Encoding
+UTT supports manual bit-level encoding and decoding for compressed texture formats:
+- **BC1 (DXT1):** Optimized for low-memory footprint color textures.
+- **BC3 (DXT5):** Used for textures requiring high-quality alpha channels.
 
-| Platform | Status      |
-|----------|-------------|
-| Windows  | Supported   |
-| macOS    | Supported   |
-| Linux    | Supported   |
+The encoding process involves direct manipulation of block-based data structures to achieve optimal compression while maintaining visual fidelity.
 
-## Getting Started
+### 3. Zstandard (Zstd) Integration
+The toolkit manages assets compressed with the Zstandard algorithm. It provides high-performance decompression and compression pipelines to handle `.zs` wrapped texture files, balancing speed and compression ratio.
 
-### Prerequisites
+### 4. Advanced State Management with Riverpod
+UTT utilizes **Riverpod** for robust, reactive state management. The architecture is designed to handle asynchronous file operations, directory scanning, and complex image processing pipelines while maintaining a clean, predictable UI state.
 
-- Flutter SDK (stable channel)
-- Windows: no additional dependencies
-- macOS: Xcode command line tools
-- Linux: libgtk-3-dev, libblkid-dev, liblzma-dev
+## Key Features
+- **Generic Directory Processing:** Decoupled from specific emulator structures; works with any resource directory.
+- **Setup Gate:** A streamlined initialization flow for professional workflows.
+- **Hardware-Aware Layout Detection:** Automatically identifies layout parameters based on file size and header data.
+- **Integrated Backup System:** Automatic timestamped backups for all modified assets.
 
-### Build from source
-
-    flutter pub get
-    flutter build windows --release
-    flutter build macos --release
-    flutter build linux --release
-
-## CI / Release
-
-This project uses GitHub Actions for automated builds and releases.
-To trigger a release, go to Actions, select "Build and Release",
-and run the workflow manually with a version tag (e.g. v1.0.0).
-
-Builds produced:
-- Windows: installer (.exe) via inno_bundle
-- macOS: disk image (.dmg)
-- Linux: tar.gz bundle and AppImage
-
-## Project Structure
-
-    lib/
-      src/
-        models/       - Data models
-        providers/    - Riverpod state providers
-        services/     - Texture processing and file services
-        ui/
-          views/      - Full screen views
-          utils/      - Helpers including image editor and crop logic
-
-## License
-
-See LICENSE.txt for details.
+## Technical Stack
+- **Framework:** Flutter (Desktop)
+- **Language:** Dart
+- **State Management:** Riverpod (AsyncNotifier)
+- **Graphics Logic:** Custom Swizzle & BC-Codec implementations
+- **Compression:** Zstandard

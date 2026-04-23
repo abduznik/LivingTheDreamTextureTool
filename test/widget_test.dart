@@ -1,8 +1,8 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:living_the_dream_texture_tool/main.dart';
-import 'package:living_the_dream_texture_tool/src/services/settings_service.dart';
-import 'package:living_the_dream_texture_tool/src/providers/app_providers.dart';
+import 'package:universal_texture_toolkit/main.dart';
+import 'package:universal_texture_toolkit/src/services/settings_service.dart';
+import 'package:universal_texture_toolkit/src/providers/app_providers.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 void main() {
@@ -22,6 +22,7 @@ void main() {
     );
 
     // Verify that our app starts and shows the title.
-    expect(find.text('Livin\' The Dream Toolkit'), findsOneWidget);
+    expect(find.text('Universal Texture Toolkit'), findsOneWidget);
+    expect(find.text('Welcome to UTT'), findsOneWidget);
   });
 }

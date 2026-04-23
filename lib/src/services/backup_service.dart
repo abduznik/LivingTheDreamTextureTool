@@ -1,18 +1,18 @@
 import 'dart:io' as io;
 import 'package:path/path.dart' as p;
-import '../models/ugc_texture_entry.dart';
+import '../models/vrs_texture_entry.dart';
 
 class BackupService {
-  static Future<String> backupEntry(UgcTextureEntry entry) async {
-    final now = DateTime.now();
-    final timestamp = '${now.year}${now.month}${now.day}_${now.hour}${now.minute}${now.second}';
-    final backupDirName = 'backup_$timestamp';
-    final backupPath = p.join(entry.directory, 'backups', backupDirName);
-
+  static Future<String> backupEntry(VrsTextureEntry entry) async {
+    final timestamp = DateTime.now().millisecondsSinceEpoch;
+    final backupPath = p.join(entry.directory, 'backups', '${entry.stem}_$timestamp');
+    
     final dir = io.Directory(backupPath);
-    await dir.create(recursive: true);
+    if (!await dir.exists()) {
+      await dir.create(recursive: true);
+    }
 
-    await _copyIfExist(entry.ugctexPath, p.join(backupPath, p.basename(entry.ugctexPath)));
+    await _copyIfExist(entry.vrsPath, p.join(backupPath, p.basename(entry.vrsPath)));
     if (entry.thumbPath != null) {
       await _copyIfExist(entry.thumbPath!, p.join(backupPath, p.basename(entry.thumbPath!)));
     }
@@ -23,10 +23,10 @@ class BackupService {
     return backupPath;
   }
 
-  static Future<void> _copyIfExist(String src, String dst) async {
+  static Future<void> _copyIfExist(String src, String dest) async {
     final file = io.File(src);
     if (await file.exists()) {
-      await file.copy(dst);
+      await file.copy(dest);
     }
   }
 }

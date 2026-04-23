@@ -6,7 +6,7 @@ plugins {
 }
 
 android {
-    namespace = "com.example.living_the_dream_texture_editor"
+    namespace = "com.abduznik.universal_texture_toolkit"
     compileSdk = flutter.compileSdkVersion
     ndkVersion = flutter.ndkVersion
 
@@ -21,7 +21,7 @@ android {
 
     defaultConfig {
         // TODO: Specify your own unique Application ID (https://developer.android.com/studio/build/application-id.html).
-        applicationId = "com.example.living_the_dream_texture_editor"
+        applicationId = "com.abduznik.universal_texture_toolkit"
         // You can update the following values to match your application needs.
         // For more information, see: https://flutter.dev/to/review-gradle-config.
         minSdk = flutter.minSdkVersion

@@ -25,7 +25,7 @@ class MyApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'Living The Dream Texture Editor',
+      title: 'Universal Texture Toolkit',
       theme: ThemeData(
         brightness: Brightness.dark,
         primarySwatch: Colors.blue,

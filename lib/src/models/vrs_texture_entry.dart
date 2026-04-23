@@ -1,13 +1,13 @@
-class UgcTextureEntry {
+class VrsTextureEntry {
   final String stem;
-  final String ugctexPath;
+  final String vrsPath;
   final String? thumbPath;
   final String? canvasPath;
   final String directory;
 
-  UgcTextureEntry({
+  VrsTextureEntry({
     required this.stem,
-    required this.ugctexPath,
+    required this.vrsPath,
     this.thumbPath,
     this.canvasPath,
     required this.directory,

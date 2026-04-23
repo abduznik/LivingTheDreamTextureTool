@@ -1,5 +1,6 @@
-name: LivingTheDreamTextureEditor
-description: "A Flutter desktop tool for importing and processing textures."
+name: universal_texture_toolkit
+description: "A Flutter-based desktop utility for hardware-accelerated bit-manipulation, Zstandard decompression, and BC1/BC3 texture processing for Tegra-compatible assets."
+homepage: "https://github.com/abduznik/universal-texture-tool"
 publish_to: 'none'
 
 version: 1.0.0+1
@@ -36,6 +37,7 @@ dev_dependencies:
 flutter_launcher_icons:
   image_path: "logo.png"
   macos:
+    generate: true
     image_path: "logo.png"
   windows:
     generate: true
@@ -46,15 +48,16 @@ flutter_launcher_icons:
 
 inno_bundle:
   id: 7512da16-c167-4530-bf3b-b6bd0bb7a20c
-  name: "Living The Dream Texture Editor"
+  name: "Universal Texture Toolkit"
   publisher: "abduznik"
   maintainer: "abduznik <https://github.com/abduznik>"
   languages:
     - english
-  description: "Texture import and processing tool"
-  url: "https://github.com/abduznik/LivingTheDreamTextureTool"
+  description: "Universal Texture Toolkit for Tegra-compatible assets."
+  url: "https://github.com/abduznik/universal-texture-tool"
 
 flutter:
   uses-material-design: true
   assets:
     - assets/background.jpg
+    - logo.png

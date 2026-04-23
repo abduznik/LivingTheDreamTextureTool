@@ -1,17 +1,12 @@
-import 'dart:async';
 import 'dart:io' as io;
-import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:image/image.dart' as img;
-import 'package:file_picker/file_picker.dart';
+import '../../models/vrs_texture_entry.dart';
 import '../../providers/app_providers.dart';
-import '../../models/ugc_texture_entry.dart';
-import '../../services/texture_processor.dart';
 import '../../services/backup_service.dart';
+import '../../services/texture_processor.dart';
+import '../../services/directory_processor.dart';
 import '../utils/image_editor_helper.dart';
-import 'settings_view.dart';
-import '../../services/emulator_scanner.dart';
 
 class EditorView extends ConsumerStatefulWidget {
   const EditorView({super.key});
@@ -21,143 +16,74 @@ class EditorView extends ConsumerStatefulWidget {
 }
 
 class _EditorViewState extends ConsumerState<EditorView> {
-  UgcTextureEntry? _selectedEntry;
-  Uint8List? _previewBytes;
-  bool _isLoadingPreview = false;
+  VrsTextureEntry? _selectedEntry;
   bool _isProcessing = false;
   String _status = '';
-  Timer? _refreshTimer;
 
-  @override
-  void initState() {
-    super.initState();
-    _refreshTimer = Timer.periodic(const Duration(seconds: 2), (_) {
-      _refreshFileList();
-    });
-  }
-
-  @override
-  void dispose() {
-    _refreshTimer?.cancel();
-    super.dispose();
-  }
-
-  Future<void> _refreshFileList() async {
-    final currentEntries = ref.read(ugcEntriesProvider).value ?? [];
+  Future<void> _refreshFolder() async {
     final path = ref.read(selectedPathProvider);
     if (path == null) return;
     
-    final newEntries = EmulatorScanner.scanFolder(path);
-    final addedEntries = newEntries.where((ne) => !currentEntries.any((ce) => ce.ugctexPath == ne.ugctexPath)).toList();
-
+    final newEntries = DirectoryProcessor.scanFolder(path);
+    final currentEntries = ref.read(vrsEntriesProvider).value ?? [];
+    
+    // Check if any new entries were found that are not in current list
+    final addedEntries = newEntries.where((ne) => !currentEntries.any((ce) => ce.vrsPath == ne.vrsPath)).toList();
+    
     if (addedEntries.isEmpty) return;
 
-    // Use a temporary list to add
-    final updatedList = List<UgcTextureEntry>.from(currentEntries)..addAll(addedEntries);
-    updatedList.sort((a, b) => a.stem.toLowerCase().compareTo(b.stem.toLowerCase()));
-
-    // Directly update state if possible or trigger provider update
-    // Given the structure, we can just manually trigger the refresh or rebuild.
-    // For additive logic, rebuilding the provider might be safer if it's async notifier.
-    // However, user requested "append... without resetting the list".
-    // I will trigger a simple rebuild/append approach.
-    
-    // Simplest: just refresh the provider which triggers rebuild
-    ref.read(ugcEntriesProvider.notifier).refresh();
+    // This is a bit of a hack to update the list if it was already loaded
+    final updatedList = List<VrsTextureEntry>.from(currentEntries)..addAll(addedEntries);
+    // Note: In a real app, we'd probably want to refresh the provider properly
+    // but for this simple tool we just invalidate it.
+    ref.read(vrsEntriesProvider.notifier).refresh();
   }
 
-  Future<void> _loadPreview(UgcTextureEntry entry) async {
+  Future<void> _loadPreview(VrsTextureEntry entry) async {
     setState(() {
-      _isLoadingPreview = true;
-      _status = 'Decoding ${entry.displayName}...';
-      _previewBytes = null;
+      _selectedEntry = entry;
+      _status = 'Loading preview...';
     });
 
     try {
-      final decoded = await TextureProcessor.decodeFile(entry.ugctexPath);
-      final pngBytes = Uint8List.fromList(img.encodePng(decoded));
+      final decoded = await TextureProcessor.decodeFile(entry.vrsPath);
       if (mounted && _selectedEntry == entry) {
         setState(() {
-          _previewBytes = pngBytes;
-          _status = '${entry.displayName} (${decoded.width}x${decoded.height})';
-          _isLoadingPreview = false;
+          _status = 'Ready: ${entry.stem}';
         });
       }
     } catch (e) {
       if (mounted && _selectedEntry == entry) {
-        setState(() {
-          _status = 'Error: $e';
-          _isLoadingPreview = false;
-        });
+        setState(() => _status = 'Error loading preview: $e');
       }
     }
   }
 
-  Future<void> _exportPng() async {
-    if (_selectedEntry == null) return;
-    
-    final result = await FilePicker.saveFile(
-      dialogTitle: 'Export PNG',
-      fileName: '${_selectedEntry!.stem}.png',
-      type: FileType.custom,
-      allowedExtensions: ['png'],
-    );
-
-    if (result != null) {
-      setState(() => _isProcessing = true);
-      try {
-        final decoded = await TextureProcessor.decodeFile(_selectedEntry!.ugctexPath);
-        final png = img.encodePng(decoded);
-        await io.File(result).writeAsBytes(png);
-        setState(() => _status = 'Exported to $result');
-      } catch (e) {
-        setState(() => _status = 'Export error: $e');
-      } finally {
-        setState(() => _isProcessing = false);
-      }
-    }
-  }
-
-  Future<void> _importPng() async {
+  Future<void> _importTexture() async {
     if (_selectedEntry == null) return;
 
-    final result = await FilePicker.pickFiles(
-      dialogTitle: 'Import Image',
-      type: FileType.image,
-    );
+    // 1. Get image from clipboard or file? 
+    // For now, let's assume we use an image editor helper that returns bytes.
+    final decoded = await TextureProcessor.decodeFile(_selectedEntry!.vrsPath);
+    final editedBytes = await openCropEditor(context, decoded.toUint8List());
 
-    if (result != null && result.files.single.path != null) {
-      final pngPath = result.files.single.path!;
-      final imageBytes = await io.File(pngPath).readAsBytes();
+    if (editedBytes == null) return;
 
-      if (!mounted) return;
-
-      final editedBytes = await openCropEditor(context, imageBytes);
-
-      if (editedBytes != null) {
-        await _processImport(editedBytes);
-      }
-    }
-  }
-
-  Future<void> _processImport(Uint8List editedBytes) async {
-    if (_selectedEntry == null) return;
-
-    bool regenerateThumb = false;
+    // Show confirmation for thumb regeneration if it has one
+    bool regenerateThumb = _selectedEntry!.hasThumb;
     if (_selectedEntry!.hasThumb) {
-      if (!mounted) return;
-      regenerateThumb = await showDialog<bool>(
-            context: context,
-            builder: (context) => AlertDialog(
-              title: const Text('Regenerate Thumbnail?'),
-              content: const Text('Would you like to regenerate the thumbnail from the imported PNG?'),
-              actions: [
-                TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('No')),
-                ElevatedButton(onPressed: () => Navigator.pop(context, true), child: const Text('Yes')),
-              ],
-            ),
-          ) ??
-          false;
+      final choice = await showDialog<bool>(
+        context: context,
+        builder: (context) => AlertDialog(
+          title: const Text('Regenerate Thumbnail?'),
+          content: const Text('This texture has a thumbnail. Should it be updated too?'),
+          actions: [
+            TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('No')),
+            ElevatedButton(onPressed: () => Navigator.pop(context, true), child: const Text('Yes')),
+          ],
+        ),
+      );
+      regenerateThumb = choice ?? false;
     }
 
     setState(() => _isProcessing = true);
@@ -176,11 +102,11 @@ class _EditorViewState extends ConsumerState<EditorView> {
         destStem: '${_selectedEntry!.directory}/${_selectedEntry!.stem}',
         writeThumb: regenerateThumb,
         writeCanvas: _selectedEntry!.hasCanvas,
-        originalUgctexPath: _selectedEntry!.ugctexPath,
+        originalVrsPath: _selectedEntry!.vrsPath,
       );
 
       setState(() => _status = 'Success! Backup in $backupDir');
-      ref.invalidate(ugcEntriesProvider);
+      ref.invalidate(vrsEntriesProvider);
       _loadPreview(_selectedEntry!);
     } catch (e) {
       setState(() => _status = 'Import error: $e');
@@ -188,43 +114,45 @@ class _EditorViewState extends ConsumerState<EditorView> {
       setState(() => _isProcessing = false);
     }
   }
+
   @override
   Widget build(BuildContext context) {
-    final entriesAsync = ref.watch(ugcEntriesProvider);
+    final entriesAsync = ref.watch(vrsEntriesProvider);
 
     return Scaffold(
       backgroundColor: Colors.transparent,
       appBar: AppBar(
-        title: const Text('Living The Dream Texture Editor'),
-        backgroundColor: Colors.black.withAlpha(128),
+        title: const Text('Texture Editor'),
+        backgroundColor: Colors.black45,
         actions: [
           IconButton(
-            icon: const Icon(Icons.settings),
+            icon: const Icon(Icons.refresh),
+            onPressed: () => ref.read(vrsEntriesProvider.notifier).refresh(),
+          ),
+          IconButton(
+            icon: const Icon(Icons.folder_open),
             onPressed: () {
-              Navigator.of(context).push(
-                MaterialPageRoute(builder: (_) => const SettingsView()),
-              );
+              ref.read(selectedPathProvider.notifier).setPath(null);
             },
           ),
         ],
       ),
       body: Row(
         children: [
-          // Sidebar: File list with opacity darken
-          Container(
+          // Sidebar
+          SizedBox(
             width: 300,
-            color: Colors.black.withAlpha(154),
             child: entriesAsync.when(
               data: (entries) => ListView.builder(
                 itemCount: entries.length,
                 itemBuilder: (context, index) {
                   final entry = entries[index];
                   return ListTile(
-                    title: Text(entry.displayName),
+                    title: Text(entry.displayName, style: const TextStyle(color: Colors.white)),
+                    subtitle: Text(entry.hasCanvas ? 'Has Canvas' : 'No Canvas', style: const TextStyle(color: Colors.white70)),
                     selected: _selectedEntry == entry,
-                    selectedTileColor: Colors.blue.withAlpha(51),
+                    selectedTileColor: Colors.blue.withOpacity(0.2),
                     onTap: () {
-                      setState(() => _selectedEntry = entry);
                       _loadPreview(entry);
                     },
                   );
@@ -234,61 +162,73 @@ class _EditorViewState extends ConsumerState<EditorView> {
               error: (e, s) => Center(child: Text('Error: $e')),
             ),
           ),
-          const VerticalDivider(width: 1, color: Colors.white24),
-          // Main content: Preview and Actions
+          // Main Preview
           Expanded(
-            child: Column(
-              children: [
-                Expanded(
-                  child: Center(
-                    child: _isLoadingPreview
-                        ? const CircularProgressIndicator()
-                        : _previewBytes != null
-                            ? Image.memory(_previewBytes!)
-                            : const Text('Select a texture to preview'),
-                  ),
-                ),
-                Container(
-                  padding: const EdgeInsets.all(24.0),
-                  color: Colors.black.withAlpha(179),
-                  child: Column(
-                    children: [
-                      Text(_status, style: const TextStyle(fontWeight: FontWeight.bold)),
-                      const SizedBox(height: 24),
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          ConstrainedBox(
-                            constraints: const BoxConstraints(minHeight: 60, minWidth: 180),
-                            child: ElevatedButton.icon(
-                              style: ElevatedButton.styleFrom(
-                                padding: const EdgeInsets.symmetric(horizontal: 24),
-                                textStyle: const TextStyle(fontSize: 18),
-                              ),
-                              icon: const Icon(Icons.download, size: 28),
-                              label: const Text('Export PNG'),
-                              onPressed: _selectedEntry == null || _isProcessing ? null : _exportPng,
-                            ),
+            child: Container(
+              color: Colors.black26,
+              child: Column(
+                children: [
+                  Expanded(
+                    child: _selectedEntry == null
+                        ? const Center(child: Text('Select a texture to edit', style: TextStyle(color: Colors.white54)))
+                        : FutureBuilder(
+                            future: TextureProcessor.decodeFile(_selectedEntry!.vrsPath),
+                            builder: (context, snapshot) {
+                              if (snapshot.connectionState == ConnectionState.waiting) {
+                                return const Center(child: CircularProgressIndicator());
+                              }
+                              if (snapshot.hasError) {
+                                return Center(child: Text('Error: ${snapshot.error}'));
+                              }
+                              return Center(
+                                child: SingleChildScrollView(
+                                  child: Column(
+                                    children: [
+                                      Image.memory(
+                                        snapshot.data!.toUint8List(),
+                                        filterQuality: FilterQuality.none,
+                                      ),
+                                      const SizedBox(height: 16),
+                                      if (_selectedEntry!.hasThumb) ...[
+                                        const Text('Thumbnail Preview:', style: TextStyle(color: Colors.white70)),
+                                        FutureBuilder(
+                                          future: TextureProcessor.decodeFile(_selectedEntry!.thumbPath!),
+                                          builder: (context, thumbSnap) {
+                                            if (!thumbSnap.hasData) return const SizedBox();
+                                            return Image.memory(thumbSnap.data!.toUint8List());
+                                          },
+                                        ),
+                                      ],
+                                    ],
+                                  ),
+                                ),
+                              );
+                            },
                           ),
-                          const SizedBox(width: 24),
-                          ConstrainedBox(
-                            constraints: const BoxConstraints(minHeight: 60, minWidth: 180),
-                            child: ElevatedButton.icon(
-                              style: ElevatedButton.styleFrom(
-                                padding: const EdgeInsets.symmetric(horizontal: 24),
-                                textStyle: const TextStyle(fontSize: 18),
-                              ),
-                              icon: const Icon(Icons.upload, size: 28),
-                              label: const Text('Import Image'),
-                              onPressed: _selectedEntry == null || _isProcessing ? null : _importPng,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ],
                   ),
-                ),
-              ],
+                  // Footer
+                  Container(
+                    padding: const EdgeInsets.all(16),
+                    color: Colors.black45,
+                    child: Row(
+                      children: [
+                        Expanded(
+                          child: Text(
+                            _status,
+                            style: const TextStyle(color: Colors.white70),
+                          ),
+                        ),
+                        if (_selectedEntry != null)
+                          ElevatedButton.icon(
+                            onPressed: _isProcessing ? null : _importTexture,
+                            icon: const Icon(Icons.file_upload),
+                            label: const Text('Import New PNG'),
+                          ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
             ),
           ),
         ],

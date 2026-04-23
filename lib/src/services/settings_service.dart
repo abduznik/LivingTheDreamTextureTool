@@ -1,8 +1,8 @@
 import 'package:shared_preferences/shared_preferences.dart';
 
 class SettingsService {
-  static const String _keySelectedPath = 'selected_ugc_path';
-  static const String _keyAutoLoad = 'auto_load_ugc_path';
+  static const String _keySelectedPath = 'selected_resource_path';
+  static const String _keyAutoLoad = 'auto_load_resource_path';
 
   final SharedPreferences _prefs;
 

@@ -8,11 +8,11 @@ import 'swizzle_logic.dart';
 import 'bc_codec.dart';
 import 'color_utils.dart';
 
-enum TextureKind { canvas, ugctex, thumb }
+enum TextureKind { canvas, vrstex, thumb }
 
 enum TextureFormat { bc1, bc3 }
 
-class UgctexLayout {
+class VrsLayout {
   final int width;
   final int height;
   final int swizzleBlocksWide;
@@ -20,7 +20,7 @@ class UgctexLayout {
   final int blockHeight;
   final TextureFormat format;
 
-  UgctexLayout({
+  VrsLayout({
     required this.width,
     required this.height,
     required this.swizzleBlocksWide,
@@ -42,20 +42,20 @@ class TextureProcessor {
   static TextureKind detectKind(String fileName) {
     final lower = p.basename(fileName).toLowerCase();
     if (lower.contains('thumb')) return TextureKind.thumb;
-    if (lower.contains('ugctex')) return TextureKind.ugctex;
+    if (lower.contains('ugctex')) return TextureKind.vrstex;
     return TextureKind.canvas;
   }
 
-  static UgctexLayout detectUgctexLayout(int decompressedBytes) {
+  static VrsLayout detectVrsLayout(int decompressedBytes) {
     switch (decompressedBytes) {
       case 131072:
-        return UgctexLayout(width: 512, height: 512, swizzleBlocksWide: 128, swizzleBlocksTall: 128, blockHeight: 16, format: TextureFormat.bc1);
+        return VrsLayout(width: 512, height: 512, swizzleBlocksWide: 128, swizzleBlocksTall: 128, blockHeight: 16, format: TextureFormat.bc1);
       case 98304:
-        return UgctexLayout(width: 384, height: 384, swizzleBlocksWide: 96, swizzleBlocksTall: 128, blockHeight: 16, format: TextureFormat.bc1);
+        return VrsLayout(width: 384, height: 384, swizzleBlocksWide: 96, swizzleBlocksTall: 128, blockHeight: 16, format: TextureFormat.bc1);
       case 65536:
-        return UgctexLayout(width: 256, height: 256, swizzleBlocksWide: 64, swizzleBlocksTall: 64, blockHeight: 8, format: TextureFormat.bc3);
+        return VrsLayout(width: 256, height: 256, swizzleBlocksWide: 64, swizzleBlocksTall: 64, blockHeight: 8, format: TextureFormat.bc3);
       default:
-        throw Exception('Unknown ugctex format: $decompressedBytes bytes decompressed.');
+        throw Exception('Unknown VRS format: $decompressedBytes bytes decompressed.');
     }
   }
 
@@ -66,8 +66,8 @@ class TextureProcessor {
     switch (kind) {
       case TextureKind.thumb:
         return decodeThumb(rawData, noSrgb: noSrgb);
-      case TextureKind.ugctex:
-        return decodeUgctex(rawData, noSrgb: noSrgb);
+      case TextureKind.vrstex:
+        return decodeVrs(rawData, noSrgb: noSrgb);
       case TextureKind.canvas:
         return decodeCanvas(rawData, noSrgb: noSrgb);
     }
@@ -102,8 +102,8 @@ class TextureProcessor {
     );
   }
 
-  static img.Image decodeUgctex(Uint8List rawData, {bool noSrgb = false}) {
-    final layout = detectUgctexLayout(rawData.length);
+  static img.Image decodeVrs(Uint8List rawData, {bool noSrgb = false}) {
+    final layout = detectVrsLayout(rawData.length);
     final visibleBlocksWide = layout.width ~/ 4;
     final visibleBlocksTall = layout.height ~/ 4;
 
@@ -154,19 +154,19 @@ class TextureProcessor {
     required bool writeThumb,
     required bool writeCanvas,
     bool noSrgb = false,
-    String? originalUgctexPath,
+    String? originalVrsPath,
   }) async {
     final srcFile = await io.File(pngPath).readAsBytes();
     img.Image? srcImage = img.decodeImage(srcFile);
     if (srcImage == null) throw Exception('Failed to decode PNG');
 
-    UgctexLayout layout;
+    VrsLayout layout;
     Uint8List? originalSwizzled;
-    if (originalUgctexPath != null && await io.File(originalUgctexPath).exists()) {
-      originalSwizzled = await zstdDecompress(originalUgctexPath);
-      layout = detectUgctexLayout(originalSwizzled.length);
+    if (originalVrsPath != null && await io.File(originalVrsPath).exists()) {
+      originalSwizzled = await zstdDecompress(originalVrsPath);
+      layout = detectVrsLayout(originalSwizzled.length);
     } else {
-      layout = UgctexLayout(width: 512, height: 512, swizzleBlocksWide: 128, swizzleBlocksTall: 128, blockHeight: 16, format: TextureFormat.bc1);
+      layout = VrsLayout(width: 512, height: 512, swizzleBlocksWide: 128, swizzleBlocksTall: 128, blockHeight: 16, format: TextureFormat.bc1);
     }
 
     if (writeCanvas) {
@@ -180,13 +180,13 @@ class TextureProcessor {
     }
 
     {
-      img.Image ugcImage = img.copyResize(srcImage, width: layout.width, height: layout.height);
-      Uint8List ugcRgba = ugcImage.toUint8List();
-      if (!noSrgb) ColorUtils.convertSrgbToLinear(ugcRgba);
+      img.Image vrsImage = img.copyResize(srcImage, width: layout.width, height: layout.height);
+      Uint8List vrsRgba = vrsImage.toUint8List();
+      if (!noSrgb) ColorUtils.convertSrgbToLinear(vrsRgba);
 
       final encodedBlocks = layout.format == TextureFormat.bc3
-          ? BcCodec.bc3Encode(ugcRgba, layout.width, layout.height)
-          : BcCodec.bc1Encode(ugcRgba, layout.width, layout.height);
+          ? BcCodec.bc3Encode(vrsRgba, layout.width, layout.height)
+          : BcCodec.bc1Encode(vrsRgba, layout.width, layout.height);
 
       final swizzled = SwizzleLogic.swizzleBlockLinear(
         encodedBlocks,

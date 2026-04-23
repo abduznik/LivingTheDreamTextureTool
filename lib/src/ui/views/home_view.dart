@@ -1,75 +1,25 @@
-// ignore_for_file: deprecated_member_use
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:file_picker/file_picker.dart';
 import '../../providers/app_providers.dart';
-import '../../services/emulator_scanner.dart';
-import '../../models/emulator_path.dart';
 import 'editor_view.dart';
 import 'settings_view.dart';
 
-class HomeView extends ConsumerStatefulWidget {
+class HomeView extends ConsumerWidget {
   const HomeView({super.key});
 
-  @override
-  ConsumerState<HomeView> createState() => _HomeViewState();
-}
-
-class _HomeViewState extends ConsumerState<HomeView> {
-  bool _isScanning = false;
-
-  @override
-  void initState() {
-    super.initState();
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      _checkInitialPath();
-    });
-  }
-
-  Future<void> _checkInitialPath() async {
-    final selectedPath = ref.read(selectedPathProvider);
-    if (selectedPath != null) {
-      // Path already selected, EditorView will be shown via conditional build
-      return;
-    }
-
-    await _runScan();
-  }
-
-  Future<void> _runScan() async {
-    setState(() => _isScanning = true);
-    try {
-      final scanner = EmulatorScanner();
-      final results = await scanner.scan();
-
-      if (results.isEmpty) {
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('No emulator save folders found automatically.')),
-          );
-        }
-      } else if (results.length == 1) {
-        // Even if 1, maybe show dialog or just auto-select? 
-        // User said: "if you ever meet 2 of them open a popup".
-        // I'll show it even for 1 so they can confirm.
-        if (mounted) _showSelectionDialog(results);
-      } else {
-        if (mounted) _showSelectionDialog(results);
-      }
-    } finally {
-      if (mounted) setState(() => _isScanning = false);
-    }
-  }
-
-  void _showSelectionDialog(List<EmulatorPath> results) {
-    showDialog(
-      context: context,
-      barrierDismissible: false,
-      builder: (context) => PathSelectionDialog(results: results),
+  Future<void> _pickDirectory(WidgetRef ref) async {
+    // Explicitly using the static method from the package
+    String? result = await FilePicker.getDirectoryPath(
+      dialogTitle: 'Select Resource Directory',
     );
+    if (result != null) {
+      await ref.read(selectedPathProvider.notifier).setPath(result);
+    }
   }
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final selectedPath = ref.watch(selectedPathProvider);
 
     if (selectedPath != null) {
@@ -77,8 +27,11 @@ class _HomeViewState extends ConsumerState<HomeView> {
     }
 
     return Scaffold(
+      backgroundColor: Colors.transparent,
       appBar: AppBar(
-        title: const Text('Livin\' The Dream Toolkit'),
+        title: const Text('Universal Texture Toolkit'),
+        backgroundColor: Colors.black45,
+        elevation: 0,
         actions: [
           IconButton(
             icon: const Icon(Icons.settings),
@@ -91,109 +44,51 @@ class _HomeViewState extends ConsumerState<HomeView> {
         ],
       ),
       body: Center(
-        child: _isScanning
-            ? const Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  CircularProgressIndicator(),
-                  SizedBox(height: 16),
-                  Text('Scanning for emulator save files...'),
-                ],
-              )
-            : Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  const Text('No folder selected.'),
-                  const SizedBox(height: 16),
-                  ElevatedButton(
-                    onPressed: _runScan,
-                    child: const Text('Scan Again'),
-                  ),
-                  const SizedBox(height: 8),
-                  TextButton(
-                    onPressed: () {
-                      Navigator.of(context).push(
-                        MaterialPageRoute(builder: (_) => const SettingsView()),
-                      );
-                    },
-                    child: const Text('Manually select folder in Settings'),
-                  ),
-                ],
+        child: Container(
+          padding: const EdgeInsets.all(32),
+          decoration: BoxDecoration(
+            color: Colors.black54,
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(color: Colors.white24),
+          ),
+          constraints: const BoxConstraints(maxWidth: 500),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Image.asset('logo.png', width: 120, height: 120),
+              const SizedBox(height: 24),
+              Text(
+                'Welcome to UTT',
+                style: Theme.of(context).textTheme.headlineMedium?.copyWith(
+                      fontWeight: FontWeight.bold,
+                      color: Colors.white,
+                    ),
               ),
-      ),
-    );
-  }
-}
-
-class PathSelectionDialog extends ConsumerStatefulWidget {
-  final List<EmulatorPath> results;
-
-  const PathSelectionDialog({super.key, required this.results});
-
-  @override
-  ConsumerState<PathSelectionDialog> createState() => _PathSelectionDialogState();
-}
-
-class _PathSelectionDialogState extends ConsumerState<PathSelectionDialog> {
-  bool _rememberPath = true;
-  EmulatorPath? _selected;
-
-  @override
-  void initState() {
-    super.initState();
-    _selected = widget.results.first;
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return AlertDialog(
-      title: const Text('Select Save Folder'),
-      content: SizedBox(
-        width: 400,
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const Text('Multiple save folders were found. Please select which one to use:'),
-            const SizedBox(height: 16),
-            ...widget.results.map((res) => RadioListTile<EmulatorPath>(
-                  title: Text(res.emulatorName),
-                  subtitle: Text('User: ${res.userId}\n${res.path}'),
-                  isThreeLine: true,
-                  value: res,
-                  groupValue: _selected,
-                  onChanged: (val) {
-                    if (val != null) {
-                      setState(() => _selected = val);
-                    }
-                  },
-                )),
-            const SizedBox(height: 16),
-            CheckboxListTile(
-              title: const Text('Remember this for future uses'),
-              value: _rememberPath,
-              onChanged: (val) => setState(() => _rememberPath = val ?? false),
-            ),
-          ],
+              const SizedBox(height: 16),
+              const Text(
+                'Universal Texture Toolkit is a professional utility for bit-manipulation and hardware-accelerated texture processing.',
+                textAlign: TextAlign.center,
+                style: TextStyle(color: Colors.white70),
+              ),
+              const SizedBox(height: 24),
+              const Text(
+                'To get started, please select your resource directory containing .ugctex.zs and .canvas.zs files.',
+                textAlign: TextAlign.center,
+                style: TextStyle(color: Colors.white60, fontSize: 13),
+              ),
+              const SizedBox(height: 32),
+              ElevatedButton.icon(
+                onPressed: () => _pickDirectory(ref),
+                icon: const Icon(Icons.folder_open),
+                label: const Text('Set Resource Directory'),
+                style: ElevatedButton.styleFrom(
+                  padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 16),
+                ),
+              ),
+            ],
+          ),
         ),
       ),
-      actions: [
-        TextButton(
-          onPressed: () => Navigator.pop(context),
-          child: const Text('Cancel'),
-        ),
-        ElevatedButton(
-          onPressed: () {
-            if (_selected != null) {
-              ref.read(selectedPathProvider.notifier).setPath(_selected!.path);
-              if (_rememberPath) {
-                ref.read(autoLoadProvider.notifier).setAutoLoad(true);
-              }
-              Navigator.pop(context);
-            }
-          },
-          child: const Text('Select'),
-        ),
-      ],
     );
   }
 }

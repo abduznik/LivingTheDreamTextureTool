@@ -41,7 +41,7 @@ jobs:
       - name: Package Linux
         run: |
           cd build/linux/x64/release/bundle
-          tar -czvf ../../../../../livingthedream-linux-x64.tar.gz .
+          tar -czvf ../../../../../universal-texture-tool-linux-x64.tar.gz .
       - name: Build AppImage
         run: |
           # Install appimagetool
@@ -56,33 +56,33 @@ jobs:
           cp -r build/linux/x64/release/bundle/* AppDir/usr/bin/
           
           # Create Desktop Entry
-          cat > AppDir/usr/share/applications/livingthedream.desktop <<EOF
+          cat > AppDir/usr/share/applications/universal-texture-tool.desktop <<EOF
           [Desktop Entry]
-          Name=LivingTheDreamTextureTool
-          Exec=livingthedream
-          Icon=livingthedream
+          Name=universal-texture-tool
+          Exec=universal-texture-tool
+          Icon=universal-texture-tool
           Type=Application
           Categories=Utility;
           EOF
           
           # Use icon
-          cp web/icons/Icon-192.png AppDir/usr/share/icons/hicolor/256x256/apps/livingthedream.png
-          cp web/icons/Icon-192.png AppDir/livingthedream.png
+          cp web/icons/Icon-192.png AppDir/usr/share/icons/hicolor/256x256/apps/universal-texture-tool.png
+          cp web/icons/Icon-192.png AppDir/universal-texture-tool.png
           
           # Mandatory files for AppImage
-          cp AppDir/usr/share/applications/livingthedream.desktop AppDir/
-          ln -s usr/bin/livingthedream AppDir/AppRun
+          cp AppDir/usr/share/applications/universal-texture-tool.desktop AppDir/
+          ln -s usr/bin/universal-texture-tool AppDir/AppRun
           chmod +x AppDir/AppRun
 
           # Build AppImage
-          ARCH=x86_64 /usr/local/bin/appimagetool --appimage-extract-and-run AppDir LivingTheDreamTextureTool-x86_64.AppImage
+          ARCH=x86_64 /usr/local/bin/appimagetool --appimage-extract-and-run AppDir universal-texture-tool-x86_64.AppImage
       - name: Upload Linux Artifact
         uses: actions/upload-artifact@v4
         with:
           name: linux-release
           path: |
-            livingthedream-linux-x64.tar.gz
-            LivingTheDreamTextureTool-x86_64.AppImage
+            universal-texture-tool-linux-x64.tar.gz
+            universal-texture-tool-x86_64.AppImage
 
   build_windows:
     name: Build Windows Installer
@@ -128,19 +128,19 @@ jobs:
       - name: Ad-hoc sign macOS app
         run: |
           # Ad-hoc sign all frameworks and the app itself
-          find build/macos/Build/Products/Release/livingthedream.app/Contents/Frameworks -name "*.framework" -exec codesign --force --sign - {} + || true
-          find build/macos/Build/Products/Release/livingthedream.app/Contents/Frameworks -name "*.dylib" -exec codesign --force --sign - {} + || true
-          codesign --force --sign - build/macos/Build/Products/Release/livingthedream.app/Contents/MacOS/livingthedream
-          codesign --force --sign - build/macos/Build/Products/Release/livingthedream.app
+          find build/macos/Build/Products/Release/universal-texture-tool.app/Contents/Frameworks -name "*.framework" -exec codesign --force --sign - {} + || true
+          find build/macos/Build/Products/Release/universal-texture-tool.app/Contents/Frameworks -name "*.dylib" -exec codesign --force --sign - {} + || true
+          codesign --force --sign - build/macos/Build/Products/Release/universal-texture-tool.app/Contents/MacOS/universal-texture-tool
+          codesign --force --sign - build/macos/Build/Products/Release/universal-texture-tool.app
       - name: Create DMG
         run: |
-          npx create-dmg build/macos/Build/Products/Release/livingthedream.app --overwrite --no-code-sign
-          mv *.dmg livingthedream-macos.dmg
+          npx create-dmg build/macos/Build/Products/Release/universal-texture-tool.app --overwrite --no-code-sign
+          mv *.dmg universal-texture-tool-macos.dmg
       - name: Upload macOS DMG
         uses: actions/upload-artifact@v4
         with:
           name: macos-release
-          path: livingthedream-macos.dmg
+          path: universal-texture-tool-macos.dmg
 
   release:
     name: Create Release
@@ -180,10 +180,10 @@ jobs:
           tag_name: ${{ github.event.inputs.version }}
           name: Release ${{ github.event.inputs.version }}
           files: |
-            artifacts/livingthedream-linux-x64.tar.gz
-            artifacts/LivingTheDreamTextureTool-x86_64.AppImage
+            artifacts/universal-texture-tool-linux-x64.tar.gz
+            artifacts/universal-texture-tool-x86_64.AppImage
             artifacts/*.exe
-            artifacts/livingthedream-macos.dmg
+            artifacts/universal-texture-tool-macos.dmg
           fail_on_unmatched_files: false
           draft: false
           prerelease: false

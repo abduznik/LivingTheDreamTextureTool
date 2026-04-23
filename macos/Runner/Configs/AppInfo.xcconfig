@@ -5,10 +5,10 @@
 // 'flutter create' template.
 
 // The application's name. By default this is also the title of the Flutter window.
-PRODUCT_NAME = living_the_dream_toolkit
+PRODUCT_NAME = universal_texture_toolkit
 
 // The application's bundle identifier
-PRODUCT_BUNDLE_IDENTIFIER = com.abduznik.livingTheDreamToolkit
+PRODUCT_BUNDLE_IDENTIFIER = com.abduznik.universalTextureToolkit
 
 // The copyright displayed in application information
 PRODUCT_COPYRIGHT = Copyright © 2026 com.abduznik. All rights reserved.
