@@ -55,6 +55,8 @@ inno_bundle:
     - english
   description: "Universal Texture Toolkit for Tegra-compatible assets."
   url: "https://github.com/abduznik/universal-texture-tool"
+  icon: "windows/runner/resources/app_icon.ico"
+  setup_icon: "windows/runner/resources/app_icon.ico"
 
 flutter:
   uses-material-design: true
