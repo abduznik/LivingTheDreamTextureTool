@@ -48,7 +48,7 @@ flutter_launcher_icons:
 
 inno_bundle:
   id: 7512da16-c167-4530-bf3b-b6bd0bb7a20c
-  name: "Universal Texture Toolkit"
+  name: "universal_texture_toolkit"
   publisher: "abduznik"
   maintainer: "abduznik <https://github.com/abduznik>"
   languages:
