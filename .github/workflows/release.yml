@@ -41,7 +41,7 @@ jobs:
       - name: Package Linux
         run: |
           cd build/linux/x64/release/bundle
-          tar -czvf ../../../../../universal-texture-tool-linux-x64.tar.gz .
+          tar -czvf ../../../../../universal-texture-toolkit-linux-x64.tar.gz .
       - name: Build AppImage
         run: |
           # Install appimagetool
@@ -56,33 +56,33 @@ jobs:
           cp -r build/linux/x64/release/bundle/* AppDir/usr/bin/
           
           # Create Desktop Entry
-          cat > AppDir/usr/share/applications/universal-texture-tool.desktop <<EOF
+          cat > AppDir/usr/share/applications/universal-texture-toolkit.desktop <<EOF
           [Desktop Entry]
-          Name=universal-texture-tool
-          Exec=universal-texture-tool
-          Icon=universal-texture-tool
+          Name=Universal Texture Toolkit
+          Exec=universal_texture_toolkit
+          Icon=universal_texture_toolkit
           Type=Application
           Categories=Utility;
           EOF
           
           # Use icon
-          cp web/icons/Icon-192.png AppDir/usr/share/icons/hicolor/256x256/apps/universal-texture-tool.png
-          cp web/icons/Icon-192.png AppDir/universal-texture-tool.png
+          cp logo.png AppDir/usr/share/icons/hicolor/256x256/apps/universal_texture_toolkit.png
+          cp logo.png AppDir/universal_texture_toolkit.png
           
           # Mandatory files for AppImage
-          cp AppDir/usr/share/applications/universal-texture-tool.desktop AppDir/
-          ln -s usr/bin/universal-texture-tool AppDir/AppRun
+          cp AppDir/usr/share/applications/universal-texture-toolkit.desktop AppDir/
+          ln -s usr/bin/universal_texture_toolkit AppDir/AppRun
           chmod +x AppDir/AppRun
 
           # Build AppImage
-          ARCH=x86_64 /usr/local/bin/appimagetool --appimage-extract-and-run AppDir universal-texture-tool-x86_64.AppImage
+          ARCH=x86_64 /usr/local/bin/appimagetool --appimage-extract-and-run AppDir universal-texture-toolkit-x86_64.AppImage
       - name: Upload Linux Artifact
         uses: actions/upload-artifact@v4
         with:
           name: linux-release
           path: |
-            universal-texture-tool-linux-x64.tar.gz
-            universal-texture-tool-x86_64.AppImage
+            universal-texture-toolkit-linux-x64.tar.gz
+            universal-texture-toolkit-x86_64.AppImage
 
   build_windows:
     name: Build Windows Installer
@@ -128,19 +128,20 @@ jobs:
       - name: Ad-hoc sign macOS app
         run: |
           # Ad-hoc sign all frameworks and the app itself
-          find build/macos/Build/Products/Release/universal-texture-tool.app/Contents/Frameworks -name "*.framework" -exec codesign --force --sign - {} + || true
-          find build/macos/Build/Products/Release/universal-texture-tool.app/Contents/Frameworks -name "*.dylib" -exec codesign --force --sign - {} + || true
-          codesign --force --sign - build/macos/Build/Products/Release/universal-texture-tool.app/Contents/MacOS/universal-texture-tool
-          codesign --force --sign - build/macos/Build/Products/Release/universal-texture-tool.app
+          # Note: The app bundle name often follows the PRODUCT_NAME from AppInfo.xcconfig
+          find build/macos/Build/Products/Release/universal_texture_toolkit.app/Contents/Frameworks -name "*.framework" -exec codesign --force --sign - {} + || true
+          find build/macos/Build/Products/Release/universal_texture_toolkit.app/Contents/Frameworks -name "*.dylib" -exec codesign --force --sign - {} + || true
+          codesign --force --sign - build/macos/Build/Products/Release/universal_texture_toolkit.app/Contents/MacOS/universal_texture_toolkit
+          codesign --force --sign - build/macos/Build/Products/Release/universal_texture_toolkit.app
       - name: Create DMG
         run: |
-          npx create-dmg build/macos/Build/Products/Release/universal-texture-tool.app --overwrite --no-code-sign
-          mv *.dmg universal-texture-tool-macos.dmg
+          npx create-dmg build/macos/Build/Products/Release/universal_texture_toolkit.app --overwrite --no-code-sign
+          mv *.dmg universal-texture-toolkit-macos.dmg
       - name: Upload macOS DMG
         uses: actions/upload-artifact@v4
         with:
           name: macos-release
-          path: universal-texture-tool-macos.dmg
+          path: universal-texture-toolkit-macos.dmg
 
   release:
     name: Create Release
@@ -180,10 +181,10 @@ jobs:
           tag_name: ${{ github.event.inputs.version }}
           name: Release ${{ github.event.inputs.version }}
           files: |
-            artifacts/universal-texture-tool-linux-x64.tar.gz
-            artifacts/universal-texture-tool-x86_64.AppImage
+            artifacts/universal-texture-toolkit-linux-x64.tar.gz
+            artifacts/universal-texture-toolkit-x86_64.AppImage
             artifacts/*.exe
-            artifacts/universal-texture-tool-macos.dmg
+            artifacts/universal-texture-toolkit-macos.dmg
           fail_on_unmatched_files: false
           draft: false
           prerelease: false
