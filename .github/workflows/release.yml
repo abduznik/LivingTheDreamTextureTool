@@ -38,6 +38,12 @@ jobs:
           flutter pub get
       - name: Build Linux
         run: flutter build linux --release --build-name=${{ github.event.inputs.version }} --build-number=${{ github.run_number }}
+      - name: Verify native assets
+        run: |
+          echo "=== bundle/lib contents ==="
+          ls -la build/linux/x64/release/bundle/lib/
+          echo "=== native_assets ==="
+          find build/linux/x64/release -name "libzstandard*" 2>/dev/null || echo "NOT FOUND"
       - name: Package Linux
         run: |
           cd build/linux/x64/release/bundle
@@ -53,9 +59,7 @@ jobs:
           mkdir -p AppDir/usr/share/applications
           mkdir -p AppDir/usr/share/icons/hicolor/256x256/apps
           
-          cp build/linux/x64/release/bundle/universal_texture_toolkit AppDir/usr/bin/
-          cp -r build/linux/x64/release/bundle/lib AppDir/usr/bin/lib
-          cp -r build/linux/x64/release/bundle/data AppDir/usr/bin/data
+          cp -r build/linux/x64/release/bundle/* AppDir/usr/bin/
           
           # Create Desktop Entry
           cat > AppDir/usr/share/applications/universal-texture-toolkit.desktop <<EOF
