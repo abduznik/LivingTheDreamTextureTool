@@ -53,7 +53,9 @@ jobs:
           mkdir -p AppDir/usr/share/applications
           mkdir -p AppDir/usr/share/icons/hicolor/256x256/apps
           
-          cp -r build/linux/x64/release/bundle/* AppDir/usr/bin/
+          cp build/linux/x64/release/bundle/universal_texture_toolkit AppDir/usr/bin/
+          cp -r build/linux/x64/release/bundle/lib AppDir/usr/bin/lib
+          cp -r build/linux/x64/release/bundle/data AppDir/usr/bin/data
           
           # Create Desktop Entry
           cat > AppDir/usr/share/applications/universal-texture-toolkit.desktop <<EOF
