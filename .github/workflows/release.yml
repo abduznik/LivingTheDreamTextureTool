@@ -50,17 +50,20 @@ jobs:
           tar -czvf ../../../../../universal-texture-toolkit-linux-x64.tar.gz .
       - name: Build AppImage
         run: |
-          # Install appimagetool
-          sudo wget https://github.com/AppImage/AppImageKit/releases/download/continuous/appimagetool-x86_64.AppImage -O /usr/local/bin/appimagetool
-          sudo chmod +x /usr/local/bin/appimagetool
+          # Install linuxdeploy and linuxdeploy-plugin-appimage
+          wget https://github.com/linuxdeploy/linuxdeploy/releases/download/continuous/linuxdeploy-x86_64.AppImage -O linuxdeploy
+          chmod +x linuxdeploy
 
           # Prepare AppDir
           mkdir -p AppDir/usr/bin
           mkdir -p AppDir/usr/share/applications
           mkdir -p AppDir/usr/share/icons/hicolor/256x256/apps
-          
-          cp -r build/linux/x64/release/bundle/* AppDir/usr/bin/
-          
+
+          # Copy binary, lib/, and data/ preserving $ORIGIN/lib RPATH structure
+          cp build/linux/x64/release/bundle/universal_texture_toolkit AppDir/usr/bin/
+          cp -r build/linux/x64/release/bundle/lib AppDir/usr/bin/lib
+          cp -r build/linux/x64/release/bundle/data AppDir/usr/bin/data
+
           # Create Desktop Entry
           cat > AppDir/usr/share/applications/universal-texture-toolkit.desktop <<EOF
           [Desktop Entry]
@@ -70,18 +73,18 @@ jobs:
           Type=Application
           Categories=Utility;
           EOF
-          
+
           # Use icon
           cp logo.png AppDir/usr/share/icons/hicolor/256x256/apps/universal_texture_toolkit.png
-          cp logo.png AppDir/universal_texture_toolkit.png
-          
-          # Mandatory files for AppImage
-          cp AppDir/usr/share/applications/universal-texture-toolkit.desktop AppDir/
-          ln -s usr/bin/universal_texture_toolkit AppDir/AppRun
-          chmod +x AppDir/AppRun
 
-          # Build AppImage
-          ARCH=x86_64 /usr/local/bin/appimagetool --appimage-extract-and-run AppDir universal-texture-toolkit-x86_64.AppImage
+          # Use linuxdeploy to bundle system dependencies and package the AppImage
+          ./linuxdeploy --appdir AppDir \
+            --executable AppDir/usr/bin/universal_texture_toolkit \
+            --desktop-file AppDir/usr/share/applications/universal-texture-toolkit.desktop \
+            --icon-file AppDir/usr/share/icons/hicolor/256x256/apps/universal_texture_toolkit.png \
+            --output appimage
+
+          mv Universal_Texture_Toolkit-x86_64.AppImage universal-texture-toolkit-x86_64.AppImage
       - name: Upload Linux Artifact
         uses: actions/upload-artifact@v4
         with:
