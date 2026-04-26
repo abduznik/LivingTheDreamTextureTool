@@ -136,11 +136,14 @@ jobs:
             --build-number=${{ github.run_number }}
       - name: Ad-hoc sign macOS app
         run: |
-          # Ad-hoc sign all frameworks and the app itself with --deep for nested assets
+          # Ad-hoc sign all frameworks and the app itself with --deep and entitlements
           find build/macos/Build/Products/Release/universal_texture_toolkit.app/Contents/Frameworks -name "*.framework" -exec codesign --force --sign - {} + || true
           find build/macos/Build/Products/Release/universal_texture_toolkit.app/Contents/Frameworks -name "*.dylib" -exec codesign --force --sign - {} + || true
-          codesign --force --deep --sign - build/macos/Build/Products/Release/universal_texture_toolkit.app/Contents/MacOS/universal_texture_toolkit
-          codesign --force --deep --sign - build/macos/Build/Products/Release/universal_texture_toolkit.app
+          codesign --force --options runtime --deep --entitlements macos/Runner/Release.entitlements --sign - build/macos/Build/Products/Release/universal_texture_toolkit.app/Contents/MacOS/universal_texture_toolkit
+          codesign --force --options runtime --deep --entitlements macos/Runner/Release.entitlements --sign - build/macos/Build/Products/Release/universal_texture_toolkit.app
+      - name: Verify codesign and entitlements
+        run: |
+          codesign -vvv --display --entitlements - build/macos/Build/Products/Release/universal_texture_toolkit.app
       - name: Create DMG
         run: |
           npx create-dmg build/macos/Build/Products/Release/universal_texture_toolkit.app --overwrite --no-code-sign

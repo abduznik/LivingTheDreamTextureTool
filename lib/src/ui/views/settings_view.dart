@@ -6,11 +6,19 @@ import 'package:path/path.dart' as p;
 import '../../providers/app_providers.dart';
 import '../../services/log_service.dart';
 
-class SettingsView extends ConsumerWidget {
+class SettingsView extends ConsumerStatefulWidget {
   const SettingsView({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<SettingsView> createState() => _SettingsViewState();
+}
+
+class _SettingsViewState extends ConsumerState<SettingsView> {
+  bool _isPickingPath = false;
+  bool _isExportingLog = false;
+
+  @override
+  Widget build(BuildContext context) {
     final selectedPath = ref.watch(selectedPathProvider);
 
     return Scaffold(
@@ -27,18 +35,32 @@ class SettingsView extends ConsumerWidget {
             trailing: Row(
               mainAxisSize: MainAxisSize.min,
               children: [
-                IconButton(
-                  icon: const Icon(Icons.folder_open),
-                  tooltip: 'Select Directory',
-                  onPressed: () async {
-                    String? result = await FilePicker.getDirectoryPath(
-                      dialogTitle: 'Select Resource Directory',
-                    );
-                    if (result != null) {
-                      ref.read(selectedPathProvider.notifier).setPath(result);
-                    }
-                  },
-                ),
+                if (_isPickingPath)
+                  const SizedBox(
+                    width: 24,
+                    height: 24,
+                    child: CircularProgressIndicator(strokeWidth: 2),
+                  )
+                else
+                  IconButton(
+                    icon: const Icon(Icons.folder_open),
+                    tooltip: 'Select Directory',
+                    onPressed: () async {
+                      setState(() => _isPickingPath = true);
+                      try {
+                        String? result = await FilePicker.getDirectoryPath(
+                          dialogTitle: 'Select Resource Directory',
+                        );
+                        if (result != null) {
+                          ref.read(selectedPathProvider.notifier).setPath(result);
+                        }
+                      } catch (e, stack) {
+                        LogService.log('Settings: Folder Picker Error: $e\n$stack');
+                      } finally {
+                        if (mounted) setState(() => _isPickingPath = false);
+                      }
+                    },
+                  ),
                 if (selectedPath != null)
                   IconButton(
                     icon: const Icon(Icons.clear),
@@ -54,30 +76,40 @@ class SettingsView extends ConsumerWidget {
           ListTile(
             title: const Text('Session Log'),
             subtitle: const Text('Export all debug logs for troubleshooting.'),
-            trailing: ElevatedButton.icon(
-              onPressed: () async {
-                try {
-                  final logs = await LogService.readLogs();
-                  final outputPath = await FilePicker.saveFile(
-                    dialogTitle: 'Export Session Log',
-                    fileName: 'utt_session.log',
-                  );
-                  if (outputPath != null) {
-                    final absoluteOutputPath = p.absolute(outputPath);
-                    await io.File(absoluteOutputPath).writeAsString(logs);
-                    if (context.mounted) {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(content: Text('Log exported successfully!')),
-                      );
-                    }
-                  }
-                } catch (e) {
-                  LogService.log('Settings: Export Log Error: $e');
-                }
-              },
-              icon: const Icon(Icons.bug_report),
-              label: const Text('Export Log'),
-            ),
+            trailing: _isExportingLog
+                ? const SizedBox(
+                    width: 24,
+                    height: 24,
+                    child: CircularProgressIndicator(strokeWidth: 2),
+                  )
+                : ElevatedButton.icon(
+                    onPressed: () async {
+                      final messenger = ScaffoldMessenger.of(context);
+                      setState(() => _isExportingLog = true);
+                      try {
+                        final logs = await LogService.readLogs();
+                        final outputPath = await FilePicker.saveFile(
+                          dialogTitle: 'Export Session Log',
+                          fileName: 'utt_session.log',
+                        );
+                        if (outputPath != null) {
+                          final absoluteOutputPath = p.absolute(outputPath);
+                          await io.File(absoluteOutputPath).writeAsString(logs);
+                          if (mounted) {
+                            messenger.showSnackBar(
+                              const SnackBar(content: Text('Log exported successfully!')),
+                            );
+                          }
+                        }
+                      } catch (e, stack) {
+                        LogService.log('Settings: Export Log Error: $e\n$stack');
+                      } finally {
+                        if (mounted) setState(() => _isExportingLog = false);
+                      }
+                    },
+                    icon: const Icon(Icons.bug_report),
+                    label: const Text('Export Log'),
+                  ),
           ),
           const Divider(),
           const Padding(

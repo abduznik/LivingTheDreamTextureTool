@@ -26,12 +26,36 @@ class _EditorViewState extends ConsumerState<EditorView> {
   String _status = '';
   Future<img.Image>? _previewFuture;
   bool _isLinuxPortalReady = true;
+  bool _isAccessDenied = false;
 
   @override
   void initState() {
     super.initState();
     if (io.Platform.isLinux) {
       _checkLinuxPortal();
+    }
+    if (io.Platform.isMacOS) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        _checkInitialAccess();
+      });
+    }
+  }
+
+  Future<void> _checkInitialAccess() async {
+    final path = ref.read(selectedPathProvider);
+    if (path != null) {
+      try {
+        final absolutePath = p.absolute(path);
+        final dir = io.Directory(absolutePath);
+        // This will throw PathAccessException if locked by Sandbox
+        dir.listSync();
+        if (mounted) setState(() => _isAccessDenied = false);
+      } catch (e) {
+        if (e is io.PathAccessException || e.toString().contains('Operation not permitted')) {
+          LogService.log('Sandbox Check: Access Denied for $path');
+          if (mounted) setState(() => _isAccessDenied = true);
+        }
+      }
     }
   }
 
@@ -45,6 +69,30 @@ class _EditorViewState extends ConsumerState<EditorView> {
       if (mounted) {
         setState(() => _isLinuxPortalReady = false);
       }
+    }
+  }
+
+  Future<void> _authorizeFolder() async {
+    final savedPath = ref.read(selectedPathProvider);
+    if (savedPath == null) return;
+
+    LogService.log('Triggering macOS Sandbox Bridge for: $savedPath');
+    
+    // Pass the savedPath to initialDirectory so the user is already at the right spot
+    String? selectedDirectory = await FilePicker.getDirectoryPath(
+      dialogTitle: 'Unlock Ryujinx Folder Access',
+      initialDirectory: savedPath,
+    );
+    
+    if (selectedDirectory != null) {
+      LogService.log('Sandbox Bridge Successful: Folder Authorized.');
+      if (mounted) {
+        setState(() {
+          _status = 'Folder Authorized!';
+          _isAccessDenied = false;
+        });
+      }
+      ref.read(vrsEntriesProvider.notifier).refresh();
     }
   }
 
@@ -228,6 +276,18 @@ class _EditorViewState extends ConsumerState<EditorView> {
   Widget build(BuildContext context) {
     final entriesAsync = ref.watch(vrsEntriesProvider);
 
+    // Monitor provider for access errors
+    ref.listen(vrsEntriesProvider, (previous, next) {
+      if (next is AsyncError) {
+        final errorStr = next.error.toString();
+        if (errorStr.contains('Operation not permitted') || errorStr.contains('Security Access')) {
+          if (!_isAccessDenied) {
+            setState(() => _isAccessDenied = true);
+          }
+        }
+      }
+    });
+
     return Scaffold(
       backgroundColor: Colors.transparent,
       appBar: AppBar(
@@ -271,13 +331,65 @@ class _EditorViewState extends ConsumerState<EditorView> {
                 },
               ),
               loading: () => const Center(child: CircularProgressIndicator()),
-              error: (e, s) => Center(child: Text('Error: $e')),
+              error: (e, s) => Center(
+                child: Padding(
+                  padding: const EdgeInsets.all(16.0),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      const Icon(Icons.lock_outline, color: Colors.orange, size: 48),
+                      const SizedBox(height: 16),
+                      const Text(
+                        'Access Restricted',
+                        textAlign: TextAlign.center,
+                        style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+                      ),
+                      const SizedBox(height: 16),
+                      ElevatedButton(
+                        onPressed: _authorizeFolder,
+                        child: const Text('Unlock Folder Access'),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
             ),
           ),
           Expanded(
             child: Container(
               color: Colors.black26,
-              child: Column(
+              child: _isAccessDenied 
+                ? Center(
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        const Icon(Icons.lock_open, color: Colors.orange, size: 64),
+                        const SizedBox(height: 24),
+                        const Text(
+                          'Unlock Ryujinx Folder Access',
+                          style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold),
+                        ),
+                        const SizedBox(height: 12),
+                        const Text(
+                          'macOS requires one-time permission to access the save directory.',
+                          textAlign: TextAlign.center,
+                          style: TextStyle(color: Colors.white70),
+                        ),
+                        const SizedBox(height: 32),
+                        ElevatedButton.icon(
+                          onPressed: _authorizeFolder,
+                          icon: const Icon(Icons.folder_open),
+                          label: const Text('Unlock Access'),
+                          style: ElevatedButton.styleFrom(
+                            padding: const EdgeInsets.symmetric(horizontal: 48, vertical: 20),
+                            backgroundColor: Colors.blue.shade700,
+                            foregroundColor: Colors.white,
+                          ),
+                        ),
+                      ],
+                    ),
+                  )
+                : Column(
                 children: [
                   Expanded(
                     child: _selectedEntry == null

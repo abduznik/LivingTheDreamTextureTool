@@ -6,6 +6,7 @@ import 'log_service.dart';
 class DirectoryProcessor {
   static List<VrsTextureEntry> scanFolder(String folderPath) {
     try {
+      // Defensive: Ensure we always work with absolute paths for the Sandbox bridge
       final absolutePath = p.absolute(folderPath);
       final rootDir = io.Directory(absolutePath);
       
@@ -73,8 +74,9 @@ class DirectoryProcessor {
       entries.sort((a, b) => a.stem.toLowerCase().compareTo(b.stem.toLowerCase()));
       return entries;
     } on io.PathAccessException catch (e) {
-      LogService.log('macOS/Security Access Exception: $e. Folder might be locked.');
-      return []; 
+      LogService.log('macOS Sandbox Access Exception: $e');
+      // Rethrow so the UI can detect 'Operation not permitted'
+      rethrow;
     } catch (e) {
       LogService.log("Scan failed for $folderPath: $e");
       return []; 
