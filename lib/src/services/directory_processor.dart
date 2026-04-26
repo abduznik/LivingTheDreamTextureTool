@@ -5,7 +5,8 @@ import 'log_service.dart';
 
 class DirectoryProcessor {
   static List<VrsTextureEntry> scanFolder(String folderPath) {
-    final rootDir = io.Directory(folderPath);
+    final absolutePath = p.absolute(folderPath);
+    final rootDir = io.Directory(absolutePath);
     if (!rootDir.existsSync()) return [];
 
     const ugctexSuffix = '.ugctex.zs';

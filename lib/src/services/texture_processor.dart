@@ -185,7 +185,8 @@ class TextureProcessor {
 
   static Future<bool> checkDirectoryWritable(String directoryPath) async {
     try {
-      final testFile = io.File(p.join(directoryPath, '.utt_permission_test'));
+      final absolutePath = p.absolute(directoryPath);
+      final testFile = io.File(p.join(absolutePath, '.utt_permission_test'));
       await testFile.writeAsString('test');
       await testFile.delete();
       return true;

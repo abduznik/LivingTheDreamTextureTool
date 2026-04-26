@@ -34,6 +34,32 @@ class _EditorViewState extends ConsumerState<EditorView> {
     if (io.Platform.isLinux) {
       _checkLinuxPortal();
     }
+    if (io.Platform.isMacOS) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        _checkInitialAccess();
+      });
+    }
+  }
+
+  Future<void> _checkInitialAccess() async {
+    final path = ref.read(selectedPathProvider);
+    if (path != null) {
+      try {
+        // Ensure we are working with an absolute path to avoid translocation issues
+        final absolutePath = p.absolute(path);
+        final dir = io.Directory(absolutePath);
+        // A simple listSync will throw PathAccessException if locked by Sandbox
+        dir.listSync();
+        _updatePermissionStatus();
+      } catch (e) {
+        if (e is io.PathAccessException || e.toString().contains('Operation not permitted')) {
+          LogService.log('Initial Access Check failed for $path. Triggering re-authorization.');
+          if (mounted) {
+            _authorizeFolder();
+          }
+        }
+      }
+    }
   }
 
   Future<void> _checkLinuxPortal() async {

@@ -43,9 +43,11 @@ class BackupService {
   }
 
   static Future<void> _copyIfExist(String src, String dest) async {
-    final file = io.File(src);
+    final absSrc = p.absolute(src);
+    final absDest = p.absolute(dest);
+    final file = io.File(absSrc);
     if (await file.exists()) {
-      await file.copy(dest);
+      await file.copy(absDest);
     }
   }
 }
