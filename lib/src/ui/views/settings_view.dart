@@ -56,19 +56,23 @@ class SettingsView extends ConsumerWidget {
             subtitle: const Text('Export all debug logs for troubleshooting.'),
             trailing: ElevatedButton.icon(
               onPressed: () async {
-                final logs = await LogService.readLogs();
-                final outputPath = await FilePicker.saveFile(
-                  dialogTitle: 'Export Session Log',
-                  fileName: 'utt_session.log',
-                );
-                if (outputPath != null) {
-                  final absoluteOutputPath = p.absolute(outputPath);
-                  await io.File(absoluteOutputPath).writeAsString(logs);
-                  if (context.mounted) {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(content: Text('Log exported successfully!')),
-                    );
+                try {
+                  final logs = await LogService.readLogs();
+                  final outputPath = await FilePicker.saveFile(
+                    dialogTitle: 'Export Session Log',
+                    fileName: 'utt_session.log',
+                  );
+                  if (outputPath != null) {
+                    final absoluteOutputPath = p.absolute(outputPath);
+                    await io.File(absoluteOutputPath).writeAsString(logs);
+                    if (context.mounted) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(content: Text('Log exported successfully!')),
+                      );
+                    }
                   }
+                } catch (e) {
+                  LogService.log('Settings: Export Log Error: $e');
                 }
               },
               icon: const Icon(Icons.bug_report),
