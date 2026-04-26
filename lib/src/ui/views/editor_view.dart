@@ -25,15 +25,11 @@ class _EditorViewState extends ConsumerState<EditorView> {
   bool _isProcessing = false;
   String _status = '';
   Future<img.Image>? _previewFuture;
-  bool _isLinuxPortalReady = true;
   bool _isAccessDenied = false;
 
   @override
   void initState() {
     super.initState();
-    if (io.Platform.isLinux) {
-      _checkLinuxPortal();
-    }
     if (io.Platform.isMacOS) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
         _checkInitialAccess();
@@ -47,7 +43,6 @@ class _EditorViewState extends ConsumerState<EditorView> {
       try {
         final absolutePath = p.absolute(path);
         final dir = io.Directory(absolutePath);
-        // This will throw PathAccessException if locked by Sandbox
         dir.listSync();
         if (mounted) setState(() => _isAccessDenied = false);
       } catch (e) {
@@ -59,31 +54,15 @@ class _EditorViewState extends ConsumerState<EditorView> {
     }
   }
 
-  Future<void> _checkLinuxPortal() async {
-    try {
-      final result = await io.Process.run('which', ['xdg-desktop-portal']);
-      if (mounted) {
-        setState(() => _isLinuxPortalReady = result.exitCode == 0);
-      }
-    } catch (e) {
-      if (mounted) {
-        setState(() => _isLinuxPortalReady = false);
-      }
-    }
-  }
-
   Future<void> _authorizeFolder() async {
     final savedPath = ref.read(selectedPathProvider);
     if (savedPath == null) return;
 
-    LogService.log('Triggering macOS Sandbox Bridge for: $savedPath');
-    
-    // Pass the savedPath to initialDirectory so the user is already at the right spot
     String? selectedDirectory = await FilePicker.getDirectoryPath(
       dialogTitle: 'Unlock Ryujinx Folder Access',
       initialDirectory: savedPath,
     );
-    
+
     if (selectedDirectory != null) {
       LogService.log('Sandbox Bridge Successful: Folder Authorized.');
       if (mounted) {
@@ -123,21 +102,14 @@ class _EditorViewState extends ConsumerState<EditorView> {
     FilePickerResult? result;
     try {
       result = await FilePicker.pickFiles(
-        type: FileType.image,
+        type: FileType.custom,
+        allowedExtensions: ['png', 'jpg', 'jpeg', 'bmp'],
         allowMultiple: false,
+        withReadStream: false,
       );
-    } on PlatformException catch (e) {
-      LogService.log('Picker PlatformException: $e');
-      if (io.Platform.isLinux) {
-        if (mounted) _showLinuxPortalDialog();
-        setState(() => _status = 'Portal Error: System picker failed.');
-      } else {
-        setState(() => _status = 'Picker Error: $e');
-      }
-      return;
     } catch (e) {
       LogService.log('FilePicker error: $e');
-      setState(() => _status = 'Picker Error: $e');
+      setState(() => _status = 'Picker Error: Please install a file manager to browse files.');
       return;
     }
 
@@ -163,54 +135,32 @@ class _EditorViewState extends ConsumerState<EditorView> {
         context: context,
         builder: (context) => AlertDialog(
           title: const Text('Regenerate Thumbnail?'),
-          content: const Text('This texture has a thumbnail. Should it be updated too?'),
+          content: const Text('Do you want to regenerate the thumbnail from the new image?'),
           actions: [
             TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('No')),
-            ElevatedButton(onPressed: () => Navigator.pop(context, true), child: const Text('Yes')),
+            TextButton(onPressed: () => Navigator.pop(context, true), child: const Text('Yes')),
           ],
         ),
       );
       regenerateThumb = choice ?? false;
     }
 
-    if (!mounted) return;
-    setState(() {
-      _isProcessing = true;
-      _status = 'Overwriting hardware texture...';
-    });
+    setState(() => _isProcessing = true);
+    setState(() => _status = 'Backing up original...');
+    await BackupService.backupEntry(_selectedEntry!);
+    setState(() => _status = 'Importing...');
 
     try {
-      setState(() => _status = 'Backing up original...');
-      var backupResult = await BackupService.backupEntry(_selectedEntry!);
-      
-      String backupStatus = 'Backup in $backupResult';
-      if (backupResult.startsWith('TEMP_FALLBACK:')) {
-        final actualPath = backupResult.replaceFirst('TEMP_FALLBACK:', '');
-        backupStatus = 'Notice: Backup saved to system temp due to folder restrictions.';
-        LogService.log('Backup saved to temp: $actualPath');
-      }
-
-      setState(() => _status = 'Processing texture...');
-
-      final tempDir = io.Directory.systemTemp;
-      final absoluteTempPath = p.absolute(p.join(tempDir.path, 'edited_import_${DateTime.now().millisecondsSinceEpoch}.png'));
-      final tempFile = io.File(absoluteTempPath);
-      await tempFile.writeAsBytes(editedBytes);
-
       await TextureProcessor.importPng(
-        pngPath: tempFile.path,
-        destStem: p.join(_selectedEntry!.directory, _selectedEntry!.stem),
+        pngPath: absolutePickedPath,
+        destStem: _selectedEntry!.stem,
         writeThumb: regenerateThumb,
         writeCanvas: _selectedEntry!.hasCanvas,
         originalVrsPath: _selectedEntry!.vrsPath,
       );
 
-      if (await tempFile.exists()) {
-        await tempFile.delete();
-      }
-
       if (!mounted) return;
-      setState(() => _status = 'Successfully imported! $backupStatus');
+      setState(() => _status = 'Successfully imported!');
       ref.invalidate(vrsEntriesProvider);
       _loadPreview(_selectedEntry!);
     } catch (e) {
@@ -224,59 +174,10 @@ class _EditorViewState extends ConsumerState<EditorView> {
     }
   }
 
-  void _showLinuxPortalDialog() {
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Linux System Picker failed'),
-        content: const Text('The system file picker (portal) failed to open. This is common on some Fedora or KDE installations.\n\nPlease ensure "xdg-desktop-portal" and "xdg-desktop-portal-kde" (or -gnome) are installed.'),
-        actions: [
-          ElevatedButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('OK'),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildLinuxSystemChip() {
-    if (!io.Platform.isLinux) return const SizedBox.shrink();
-    
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-      decoration: BoxDecoration(
-        color: _isLinuxPortalReady ? Colors.blue.withValues(alpha: 0.1) : Colors.orange.withValues(alpha: 0.1),
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: _isLinuxPortalReady ? Colors.blue : Colors.orange),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(
-            _isLinuxPortalReady ? Icons.bolt : Icons.error_outline,
-            color: _isLinuxPortalReady ? Colors.blue : Colors.orange,
-            size: 16,
-          ),
-          const SizedBox(width: 8),
-          Text(
-            _isLinuxPortalReady ? 'SYSTEM READY' : 'PORTAL MISSING',
-            style: TextStyle(
-              color: _isLinuxPortalReady ? Colors.blue : Colors.orange,
-              fontWeight: FontWeight.bold,
-              fontSize: 12,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
   @override
   Widget build(BuildContext context) {
     final entriesAsync = ref.watch(vrsEntriesProvider);
 
-    // Monitor provider for access errors
     ref.listen(vrsEntriesProvider, (previous, next) {
       if (next is AsyncError) {
         final errorStr = next.error.toString();
@@ -447,10 +348,6 @@ class _EditorViewState extends ConsumerState<EditorView> {
                           ),
                         ),
                         const SizedBox(width: 8),
-                        if (io.Platform.isLinux) ...[
-                          _buildLinuxSystemChip(),
-                          const SizedBox(width: 8),
-                        ],
                         if (_selectedEntry != null) ...[
                           FutureBuilder<img.Image>(
                             future: _previewFuture,
