@@ -232,7 +232,8 @@ class _EditorViewState extends ConsumerState<EditorView> {
       setState(() => _status = 'Processing texture...');
 
       final tempDir = io.Directory.systemTemp;
-      final tempFile = io.File(p.join(tempDir.path, 'edited_import_${DateTime.now().millisecondsSinceEpoch}.png'));
+      final absoluteTempPath = p.absolute(p.join(tempDir.path, 'edited_import_${DateTime.now().millisecondsSinceEpoch}.png'));
+      final tempFile = io.File(absoluteTempPath);
       await tempFile.writeAsBytes(editedBytes);
 
       await TextureProcessor.importPng(

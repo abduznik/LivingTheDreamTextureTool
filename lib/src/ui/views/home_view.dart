@@ -1,20 +1,44 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:file_picker/file_picker.dart';
+import 'dart:io' as io;
 import '../../providers/app_providers.dart';
+import '../../services/log_service.dart';
 import 'editor_view.dart';
 import 'settings_view.dart';
 
 class HomeView extends ConsumerWidget {
   const HomeView({super.key});
 
-  Future<void> _pickDirectory(WidgetRef ref) async {
-    // Explicitly using the static method from the package
-    String? result = await FilePicker.getDirectoryPath(
-      dialogTitle: 'Select Resource Directory',
-    );
-    if (result != null) {
-      await ref.read(selectedPathProvider.notifier).setPath(result);
+  Future<void> _pickDirectory(BuildContext context, WidgetRef ref) async {
+    try {
+      String? result = await FilePicker.getDirectoryPath(
+        dialogTitle: 'Select Resource Directory',
+      );
+      if (result != null) {
+        await ref.read(selectedPathProvider.notifier).setPath(result);
+      }
+    } on PlatformException catch (e) {
+      LogService.log('macOS Security/Picker Block: $e');
+      if (context.mounted && io.Platform.isMacOS) {
+        showDialog(
+          context: context,
+          builder: (context) => AlertDialog(
+            title: const Text('macOS Security Blocked Picker'),
+            content: const Text(
+                'macOS security prevented the file picker from opening. This often happens if the app is running from a read-only disk image.\n\nPlease move the UTT app to your Applications folder and try again.'),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(context),
+                child: const Text('OK'),
+              ),
+            ],
+          ),
+        );
+      }
+    } catch (e) {
+      LogService.log('Picker error: $e');
     }
   }
 
@@ -78,7 +102,7 @@ class HomeView extends ConsumerWidget {
               ),
               const SizedBox(height: 32),
               ElevatedButton.icon(
-                onPressed: () => _pickDirectory(ref),
+                onPressed: () => _pickDirectory(context, ref),
                 icon: const Icon(Icons.folder_open),
                 label: const Text('Set Resource Directory'),
                 style: ElevatedButton.styleFrom(

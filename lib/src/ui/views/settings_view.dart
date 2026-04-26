@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:file_picker/file_picker.dart';
 import 'dart:io' as io;
+import 'package:path/path.dart' as p;
 import '../../providers/app_providers.dart';
 import '../../services/log_service.dart';
 
@@ -61,7 +62,8 @@ class SettingsView extends ConsumerWidget {
                   fileName: 'utt_session.log',
                 );
                 if (outputPath != null) {
-                  await io.File(outputPath).writeAsString(logs);
+                  final absoluteOutputPath = p.absolute(outputPath);
+                  await io.File(absoluteOutputPath).writeAsString(logs);
                   if (context.mounted) {
                     ScaffoldMessenger.of(context).showSnackBar(
                       const SnackBar(content: Text('Log exported successfully!')),

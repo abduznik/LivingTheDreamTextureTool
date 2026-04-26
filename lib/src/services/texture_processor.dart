@@ -223,15 +223,21 @@ class TextureProcessor {
     bool noSrgb = false,
     String? originalVrsPath,
   }) async {
-    final srcFile = await io.File(pngPath).readAsBytes();
+    final absolutePngPath = p.absolute(pngPath);
+    final srcFile = await io.File(absolutePngPath).readAsBytes();
     img.Image? srcImage = img.decodeImage(srcFile);
     if (srcImage == null) throw Exception('Failed to decode PNG');
 
     VrsLayout layout;
     Uint8List? originalSwizzled;
-    if (originalVrsPath != null && await io.File(originalVrsPath).exists()) {
-      originalSwizzled = await zstdDecompress(originalVrsPath);
-      layout = detectVrsLayout(originalSwizzled.length);
+    if (originalVrsPath != null) {
+      final absoluteOriginalPath = p.absolute(originalVrsPath);
+      if (await io.File(absoluteOriginalPath).exists()) {
+        originalSwizzled = await zstdDecompress(absoluteOriginalPath);
+        layout = detectVrsLayout(originalSwizzled.length);
+      } else {
+        layout = VrsLayout(width: 512, height: 512, swizzleBlocksWide: 128, swizzleBlocksTall: 128, blockHeight: 16, format: TextureFormat.bc1);
+      }
     } else {
       layout = VrsLayout(width: 512, height: 512, swizzleBlocksWide: 128, swizzleBlocksTall: 128, blockHeight: 16, format: TextureFormat.bc1);
     }
