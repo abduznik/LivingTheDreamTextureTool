@@ -1,6 +1,8 @@
 import 'dart:io' as io;
+import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:image/image.dart' as img;
 import '../../models/vrs_texture_entry.dart';
 import '../../providers/app_providers.dart';
 import '../../services/backup_service.dart';
@@ -185,7 +187,7 @@ class _EditorViewState extends ConsumerState<EditorView> {
                                   child: Column(
                                     children: [
                                       Image.memory(
-                                        snapshot.data!.toUint8List(),
+                                        Uint8List.fromList(img.encodePng(snapshot.data!)),
                                         filterQuality: FilterQuality.none,
                                       ),
                                       const SizedBox(height: 16),
@@ -195,7 +197,9 @@ class _EditorViewState extends ConsumerState<EditorView> {
                                           future: TextureProcessor.decodeFile(_selectedEntry!.thumbPath!),
                                           builder: (context, thumbSnap) {
                                             if (!thumbSnap.hasData) return const SizedBox();
-                                            return Image.memory(thumbSnap.data!.toUint8List());
+                                            return Image.memory(
+                                              Uint8List.fromList(img.encodePng(thumbSnap.data!)),
+                                            );
                                           },
                                         ),
                                       ],

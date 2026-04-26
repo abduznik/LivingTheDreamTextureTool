@@ -5,7 +5,8 @@ import '../models/vrs_texture_entry.dart';
 class BackupService {
   static Future<String> backupEntry(VrsTextureEntry entry) async {
     final timestamp = DateTime.now().millisecondsSinceEpoch;
-    final backupPath = p.join(entry.directory, 'backups', '${entry.stem}_$timestamp');
+    final parentDir = p.dirname(entry.directory);
+    final backupPath = p.join(parentDir, 'UTT_Backups', '${entry.stem}_$timestamp');
     
     final dir = io.Directory(backupPath);
     if (!await dir.exists()) {

@@ -61,5 +61,5 @@ inno_bundle:
 flutter:
   uses-material-design: true
   assets:
-    - assets/background.jpg
+    - assets/
     - logo.png

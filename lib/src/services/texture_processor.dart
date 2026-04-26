@@ -74,10 +74,27 @@ class TextureProcessor {
   }
 
   static Future<Uint8List> zstdDecompress(String path) async {
-    final compressed = await io.File(path).readAsBytes();
-    final decompressed = await _zstd.decompress(compressed);
-    if (decompressed == null) throw Exception('Decompression failed');
-    return decompressed;
+    print('UTT_DEBUG: Attempting to decompress: $path');
+    try {
+      final file = io.File(path);
+      if (!await file.exists()) {
+        print('UTT_DEBUG: File does not exist at $path');
+        throw Exception('File not found');
+      }
+      final compressed = await file.readAsBytes();
+      print('UTT_DEBUG: Read ${compressed.length} compressed bytes');
+      final decompressed = await _zstd.decompress(compressed);
+      if (decompressed == null) {
+        print('UTT_DEBUG: Zstd decompression returned null');
+        throw Exception('Decompression failed');
+      }
+      print('UTT_DEBUG: Decompressed successfully to ${decompressed.length} bytes');
+      return decompressed;
+    } catch (e, stack) {
+      print('UTT_DEBUG: Decompression error: $e');
+      print('UTT_DEBUG: Stacktrace: $stack');
+      rethrow;
+    }
   }
 
   static Future<Uint8List> zstdCompress(Uint8List data, int level) async {

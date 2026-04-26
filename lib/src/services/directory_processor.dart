@@ -18,7 +18,12 @@ class DirectoryProcessor {
         rootDir
             .listSync(recursive: true, followLinks: false)
             .whereType<io.File>()
-            .where((f) => f.path.toLowerCase().endsWith('.zs')),
+            .where((f) {
+          final pathLower = f.path.toLowerCase();
+          return pathLower.endsWith('.zs') &&
+              !pathLower.contains('backups') &&
+              !pathLower.contains('utt_backups');
+        }),
       );
     } catch (e) {
       // Handle potential permission errors during recursive scan
