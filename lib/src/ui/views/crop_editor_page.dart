@@ -3,6 +3,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:extended_image/extended_image.dart';
 import 'package:image/image.dart' as img;
+import '../../services/log_service.dart';
 
 /// A full-screen page for cropping and transforming an image.
 class CropEditorPage extends StatefulWidget {
@@ -32,7 +33,7 @@ class _CropEditorPageState extends State<CropEditorPage> {
       final data = await cropImageDataWithDartLibrary(state: state);
       if (mounted) Navigator.pop(context, data);
     } catch (e) {
-      debugPrint('Crop error: $e');
+      LogService.log('Crop error: $e');
       if (mounted) Navigator.pop(context, null);
     } finally {
       // The widget might be unmounted here if the pop was successful.

@@ -1,7 +1,7 @@
 import 'dart:io' as io;
-import 'package:flutter/foundation.dart';
 import 'package:path/path.dart' as p;
 import '../models/vrs_texture_entry.dart';
+import 'log_service.dart';
 
 class DirectoryProcessor {
   static List<VrsTextureEntry> scanFolder(String folderPath) {
@@ -15,6 +15,8 @@ class DirectoryProcessor {
     // Recursive scan to find all .zs files
     final List<io.File> allFiles = [];
     try {
+      if (!rootDir.existsSync()) return [];
+      
       allFiles.addAll(
         rootDir
             .listSync(recursive: true, followLinks: false)
@@ -26,9 +28,13 @@ class DirectoryProcessor {
               !pathLower.contains('utt_backups');
         }),
       );
+    } on io.PathAccessException catch (e) {
+      LogService.log('macOS/Security Access Exception: $e. Folder might be locked.');
+      return []; // Return empty instead of hanging
     } catch (e) {
       // Handle potential permission errors during recursive scan
-      debugPrint('Error scanning directory: $e');
+      LogService.log('Error scanning directory $folderPath: $e');
+      return [];
     }
 
     // Group files by their directory to handle multiple texture folders

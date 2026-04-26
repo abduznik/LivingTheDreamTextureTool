@@ -8,6 +8,7 @@ import 'package:file_picker/file_picker.dart';
 import 'swizzle_logic.dart';
 import 'bc_codec.dart';
 import 'color_utils.dart';
+import 'log_service.dart';
 
 enum TextureKind { canvas, vrstex, thumb }
 
@@ -75,25 +76,25 @@ class TextureProcessor {
   }
 
   static Future<Uint8List> zstdDecompress(String path) async {
-    debugPrint('UTT_DEBUG: Attempting to decompress: $path');
+    LogService.log('Attempting to decompress: $path');
     try {
       final file = io.File(path);
       if (!await file.exists()) {
-        debugPrint('UTT_DEBUG: File does not exist at $path');
+        LogService.log('File does not exist at $path');
         throw Exception('File not found');
       }
       final compressed = await file.readAsBytes();
-      debugPrint('UTT_DEBUG: Read ${compressed.length} compressed bytes');
+      LogService.log('Read ${compressed.length} compressed bytes');
       final decompressed = await _zstd.decompress(compressed);
       if (decompressed == null) {
-        debugPrint('UTT_DEBUG: Zstd decompression returned null');
+        LogService.log('Zstd decompression returned null');
         throw Exception('Decompression failed');
       }
-      debugPrint('UTT_DEBUG: Decompressed successfully to ${decompressed.length} bytes');
+      LogService.log('Decompressed successfully to ${decompressed.length} bytes');
       return decompressed;
     } catch (e, stack) {
-      debugPrint('UTT_DEBUG: Decompression error: $e');
-      debugPrint('UTT_DEBUG: Stacktrace: $stack');
+      LogService.log('Decompression error: $e');
+      LogService.log('Stacktrace: $stack');
       rethrow;
     }
   }
@@ -189,7 +190,7 @@ class TextureProcessor {
       await testFile.delete();
       return true;
     } catch (e) {
-      debugPrint('UTT_DEBUG: Directory $directoryPath is not writable: $e');
+      LogService.log('Directory $directoryPath is not writable: $e');
       return false;
     }
   }
@@ -200,7 +201,7 @@ class TextureProcessor {
       // Direct write attempt
       await file.writeAsBytes(bytes);
     } catch (e) {
-      debugPrint('UTT_DEBUG: Direct write failed for $path, trying temp file strategy: $e');
+      LogService.log('Direct write failed for $path, trying temp file strategy: $e');
       // Temp file strategy
       final tempDir = io.Directory.systemTemp;
       final tempFile = io.File(p.join(tempDir.path, 'utt_temp_${DateTime.now().microsecondsSinceEpoch}'));

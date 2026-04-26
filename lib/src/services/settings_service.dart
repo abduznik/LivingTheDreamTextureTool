@@ -3,6 +3,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 class SettingsService {
   static const String _keySelectedPath = 'selected_resource_path';
   static const String _keyAutoLoad = 'auto_load_resource_path';
+  static const String _keyMacOSBookmark = 'macos_folder_bookmark';
 
   final SharedPreferences _prefs;
 
@@ -18,8 +19,19 @@ class SettingsService {
   Future<void> setSelectedPath(String? path) async {
     if (path == null) {
       await _prefs.remove(_keySelectedPath);
+      await _prefs.remove(_keyMacOSBookmark);
     } else {
       await _prefs.setString(_keySelectedPath, path);
+    }
+  }
+
+  String? get macosBookmark => _prefs.getString(_keyMacOSBookmark);
+
+  Future<void> setMacosBookmark(String? bookmark) async {
+    if (bookmark == null) {
+      await _prefs.remove(_keyMacOSBookmark);
+    } else {
+      await _prefs.setString(_keyMacOSBookmark, bookmark);
     }
   }
 

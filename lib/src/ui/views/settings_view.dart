@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:file_picker/file_picker.dart';
+import 'dart:io' as io;
 import '../../providers/app_providers.dart';
+import '../../services/log_service.dart';
 
 class SettingsView extends ConsumerWidget {
   const SettingsView({super.key});
@@ -11,8 +13,10 @@ class SettingsView extends ConsumerWidget {
     final selectedPath = ref.watch(selectedPathProvider);
 
     return Scaffold(
+      backgroundColor: const Color(0xFF1A1A1A),
       appBar: AppBar(
         title: const Text('Settings'),
+        backgroundColor: Colors.black26,
       ),
       body: ListView(
         children: [
@@ -24,6 +28,7 @@ class SettingsView extends ConsumerWidget {
               children: [
                 IconButton(
                   icon: const Icon(Icons.folder_open),
+                  tooltip: 'Select Directory',
                   onPressed: () async {
                     String? result = await FilePicker.getDirectoryPath(
                       dialogTitle: 'Select Resource Directory',
@@ -36,11 +41,36 @@ class SettingsView extends ConsumerWidget {
                 if (selectedPath != null)
                   IconButton(
                     icon: const Icon(Icons.clear),
+                    tooltip: 'Clear Path',
                     onPressed: () {
                       ref.read(selectedPathProvider.notifier).setPath(null);
                     },
                   ),
               ],
+            ),
+          ),
+          const Divider(),
+          ListTile(
+            title: const Text('Session Log'),
+            subtitle: const Text('Export all debug logs for troubleshooting.'),
+            trailing: ElevatedButton.icon(
+              onPressed: () async {
+                final logs = await LogService.readLogs();
+                final outputPath = await FilePicker.saveFile(
+                  dialogTitle: 'Export Session Log',
+                  fileName: 'utt_session.log',
+                );
+                if (outputPath != null) {
+                  await io.File(outputPath).writeAsString(logs);
+                  if (context.mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(content: Text('Log exported successfully!')),
+                    );
+                  }
+                }
+              },
+              icon: const Icon(Icons.bug_report),
+              label: const Text('Export Log'),
             ),
           ),
           const Divider(),

@@ -1,8 +1,8 @@
 import 'dart:io' as io;
-import 'package:flutter/foundation.dart';
 import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
 import '../models/vrs_texture_entry.dart';
+import 'log_service.dart';
 
 class BackupService {
   static Future<String> backupEntry(VrsTextureEntry entry) async {
@@ -18,7 +18,7 @@ class BackupService {
       }
     } catch (e) {
       if (io.Platform.isMacOS && e is io.PathAccessException) {
-        debugPrint('UTT_DEBUG: Primary backup location failed, falling back to temp: $e');
+        LogService.log('Primary backup location failed, falling back to temp: $e');
         final tempDir = await getTemporaryDirectory();
         backupPath = p.join(tempDir.path, 'UTT_Backups', '${entry.stem}_$timestamp');
         isTempFallback = true;

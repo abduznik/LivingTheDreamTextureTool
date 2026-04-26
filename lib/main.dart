@@ -1,12 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'src/services/settings_service.dart';
+import 'src/services/log_service.dart';
 import 'src/providers/app_providers.dart';
 import 'src/ui/views/home_view.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   
+  await LogService.init();
   final settingsService = await SettingsService.init();
 
   runApp(

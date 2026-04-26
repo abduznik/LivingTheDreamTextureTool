@@ -9,7 +9,9 @@ import '../../models/vrs_texture_entry.dart';
 import '../../providers/app_providers.dart';
 import '../../services/backup_service.dart';
 import '../../services/texture_processor.dart';
+import '../../services/log_service.dart';
 import '../utils/image_editor_helper.dart';
+import 'settings_view.dart';
 
 class EditorView extends ConsumerStatefulWidget {
   const EditorView({super.key});
@@ -48,30 +50,41 @@ class _EditorViewState extends ConsumerState<EditorView> {
   }
 
   Future<void> _updatePermissionStatus() async {
-    if (_selectedEntry == null) return;
-    final isWritable = await TextureProcessor.checkDirectoryWritable(_selectedEntry!.directory);
+    final folderPath = _selectedEntry?.directory ?? ref.read(selectedPathProvider);
+    if (folderPath == null) return;
+    
+    final isWritable = await TextureProcessor.checkDirectoryWritable(folderPath);
     if (mounted) {
       setState(() => _isAuthorized = isWritable);
     }
   }
 
   Future<void> _authorizeFolder() async {
-    if (_selectedEntry == null) return;
+    // Dead Click Fix: Use selected entry OR fallback to global provider path
+    final initialDir = _selectedEntry?.directory ?? ref.read(selectedPathProvider);
+    if (initialDir == null) {
+      LogService.log('Authorization failed: No folder path available.');
+      return;
+    }
 
-    // This triggers the native macOS "Open" dialog. 
-    // When the user selects the folder, the Sandbox is 'punched through'.
+    LogService.log('Triggering macOS Authorization for: $initialDir');
     String? selectedDirectory = await FilePicker.getDirectoryPath(
       dialogTitle: 'Authorize UTT to access this folder',
-      initialDirectory: _selectedEntry!.directory,
+      initialDirectory: initialDir,
     );
     
     if (selectedDirectory != null) {
+      LogService.log('Folder Authorized successfully.');
       if (mounted) {
         setState(() => _status = 'Folder Authorized!');
       }
       await _updatePermissionStatus();
-      // Retry the import immediately
-      await _importTexture();
+      ref.read(vrsEntriesProvider.notifier).refresh();
+      
+      // If we had a selected entry, retry the import if it was triggered by a permission error
+      if (_selectedEntry != null && !_isAuthorized) {
+        await _importTexture();
+      }
     }
   }
 
@@ -123,37 +136,31 @@ class _EditorViewState extends ConsumerState<EditorView> {
 
     FilePickerResult? result;
     try {
-      // Linux/Fedora fix: Explicitly handle the picker result to avoid passing null to the cropper
       result = await FilePicker.pickFiles(
         type: FileType.image,
         allowMultiple: false,
       );
     } on PlatformException catch (e) {
-      debugPrint('UTT_DEBUG: Linux/macOS PlatformException: $e');
+      LogService.log('Picker PlatformException: $e');
       if (io.Platform.isLinux) {
-        if (mounted) {
-          _showLinuxPortalDialog();
-        }
+        if (mounted) _showLinuxPortalDialog();
         setState(() => _status = 'Portal Error: System picker failed.');
       } else {
         setState(() => _status = 'Picker Error: $e');
       }
       return;
     } catch (e) {
-      debugPrint('UTT_DEBUG: FilePicker error: $e');
+      LogService.log('FilePicker error: $e');
       setState(() => _status = 'Picker Error: $e');
       return;
     }
 
     if (result == null || result.files.single.path == null) {
-      debugPrint('UTT_DEBUG: Picker returned null or was cancelled.');
       setState(() => _status = 'Import cancelled.');
       return;
     }
 
-    // 2. Open Cropper
     final newImageBytes = await io.File(result.files.single.path!).readAsBytes();
-    
     if (!mounted) return;
     final editedBytes = await openCropEditor(context, newImageBytes);
 
@@ -162,7 +169,6 @@ class _EditorViewState extends ConsumerState<EditorView> {
       return;
     }
 
-    // Show confirmation for thumb regeneration if it has one
     bool regenerateThumb = _selectedEntry!.hasThumb;
     if (_selectedEntry!.hasThumb) {
       if (!mounted) return;
@@ -181,7 +187,6 @@ class _EditorViewState extends ConsumerState<EditorView> {
     }
 
     if (!mounted) return;
-    // 3. Permission Override Check
     setState(() {
       _isProcessing = true;
       _status = 'Overwriting hardware texture...';
@@ -195,7 +200,7 @@ class _EditorViewState extends ConsumerState<EditorView> {
       if (backupResult.startsWith('TEMP_FALLBACK:')) {
         final actualPath = backupResult.replaceFirst('TEMP_FALLBACK:', '');
         backupStatus = 'Notice: Backup saved to system temp due to folder restrictions.';
-        debugPrint('UTT_DEBUG: Backup saved to temp: $actualPath');
+        LogService.log('Backup saved to temp: $actualPath');
       }
 
       setState(() => _status = 'Processing texture...');
@@ -222,7 +227,7 @@ class _EditorViewState extends ConsumerState<EditorView> {
       ref.invalidate(vrsEntriesProvider);
       _loadPreview(_selectedEntry!);
     } catch (e) {
-      debugPrint('UTT_DEBUG: Import error: $e');
+      LogService.log('Import error: $e');
       if (io.Platform.isMacOS && (e.toString().contains('Permission denied') || e is io.PathAccessException)) {
         if (mounted) {
           _showPermissionDialog(reason: 'macOS requires one-time authorization to write to this folder. Please select the folder again to unlock it.');
@@ -286,8 +291,8 @@ class _EditorViewState extends ConsumerState<EditorView> {
   }
 
   Widget _buildPermissionChip() {
-    // Hide completely if not on macOS OR if no entry is selected yet
-    if (!io.Platform.isMacOS || _selectedEntry == null) {
+    final activePath = ref.watch(selectedPathProvider);
+    if (!io.Platform.isMacOS || activePath == null) {
       return const SizedBox.shrink();
     }
     
@@ -328,6 +333,17 @@ class _EditorViewState extends ConsumerState<EditorView> {
   Widget build(BuildContext context) {
     final entriesAsync = ref.watch(vrsEntriesProvider);
 
+    // Lazy Auto-Authorization Logic
+    ref.listen(vrsEntriesProvider, (previous, next) {
+      if (io.Platform.isMacOS && next is AsyncError) {
+        final errorStr = next.error.toString();
+        if (errorStr.contains('Operation not permitted') || errorStr.contains('Security Access')) {
+          LogService.log('Lazy Auth Trigger: Detected sandbox restriction in vrsEntriesProvider.');
+          _authorizeFolder();
+        }
+      }
+    });
+
     return Scaffold(
       backgroundColor: Colors.transparent,
       appBar: AppBar(
@@ -336,19 +352,22 @@ class _EditorViewState extends ConsumerState<EditorView> {
         actions: [
           IconButton(
             icon: const Icon(Icons.refresh),
+            tooltip: 'Refresh List',
             onPressed: () => ref.read(vrsEntriesProvider.notifier).refresh(),
           ),
           IconButton(
-            icon: const Icon(Icons.folder_open),
+            icon: const Icon(Icons.settings),
+            tooltip: 'Settings',
             onPressed: () {
-              ref.read(selectedPathProvider.notifier).setPath(null);
+              Navigator.of(context).push(
+                MaterialPageRoute(builder: (_) => const SettingsView()),
+              );
             },
           ),
         ],
       ),
       body: Row(
         children: [
-          // Sidebar
           SizedBox(
             width: 300,
             child: entriesAsync.when(
@@ -368,10 +387,35 @@ class _EditorViewState extends ConsumerState<EditorView> {
                 },
               ),
               loading: () => const Center(child: CircularProgressIndicator()),
-              error: (e, s) => Center(child: Text('Error: $e')),
+              error: (e, s) => Center(
+                child: Padding(
+                  padding: const EdgeInsets.all(16.0),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      const Icon(Icons.lock_outline, color: Colors.orange, size: 48),
+                      const SizedBox(height: 16),
+                      const Text(
+                        'Access Restricted',
+                        style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+                      ),
+                      const SizedBox(height: 8),
+                      Text(
+                        'macOS sandbox requires manual folder authorization.',
+                        textAlign: TextAlign.center,
+                        style: TextStyle(color: Colors.white.withValues(alpha: 0.7), fontSize: 12),
+                      ),
+                      const SizedBox(height: 16),
+                      ElevatedButton(
+                        onPressed: _authorizeFolder,
+                        child: const Text('Authorize Now'),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
             ),
           ),
-          // Main Preview
           Expanded(
             child: Container(
               color: Colors.black26,
@@ -420,33 +464,30 @@ class _EditorViewState extends ConsumerState<EditorView> {
                             },
                           ),
                   ),
-                  // Footer
                   Container(
                     padding: const EdgeInsets.all(16),
                     color: Colors.black45,
                     child: Row(
                       children: [
-                        Expanded(
-                          child: Row(
-                            children: [
-                              Text(
-                                _status,
-                                style: const TextStyle(color: Colors.white70),
-                              ),
-                              if (io.Platform.isMacOS) ...[
-                                const SizedBox(width: 8),
-                                _buildPermissionChip(),
-                              ],
-                              if (io.Platform.isLinux) ...[
-                                const SizedBox(width: 8),
-                                _buildLinuxSystemChip(),
-                              ],
-                            ],
+                        Flexible(
+                          child: Text(
+                            _status.isEmpty ? 'Waiting for selection...' : _status,
+                            style: const TextStyle(color: Colors.white70),
+                            overflow: TextOverflow.ellipsis,
                           ),
                         ),
+                        const SizedBox(width: 8),
+                        if (io.Platform.isMacOS) ...[
+                          _buildPermissionChip(),
+                          const SizedBox(width: 8),
+                        ],
+                        if (io.Platform.isLinux) ...[
+                          _buildLinuxSystemChip(),
+                          const SizedBox(width: 8),
+                        ],
                         if (_selectedEntry != null) ...[
-                          FutureBuilder(
-                            future: TextureProcessor.decodeFile(_selectedEntry!.vrsPath),
+                          FutureBuilder<img.Image>(
+                            future: _previewFuture,
                             builder: (context, snapshot) {
                               if (!snapshot.hasData) return const SizedBox();
                               return ElevatedButton.icon(
