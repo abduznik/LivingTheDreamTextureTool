@@ -1,4 +1,5 @@
 import 'dart:io' as io;
+import 'package:flutter/foundation.dart';
 import 'package:path/path.dart' as p;
 import '../models/vrs_texture_entry.dart';
 
@@ -27,7 +28,7 @@ class DirectoryProcessor {
       );
     } catch (e) {
       // Handle potential permission errors during recursive scan
-      print('Error scanning directory: $e');
+      debugPrint('Error scanning directory: $e');
     }
 
     // Group files by their directory to handle multiple texture folders

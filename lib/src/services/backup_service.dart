@@ -1,16 +1,34 @@
 import 'dart:io' as io;
+import 'package:flutter/foundation.dart';
 import 'package:path/path.dart' as p;
+import 'package:path_provider/path_provider.dart';
 import '../models/vrs_texture_entry.dart';
 
 class BackupService {
   static Future<String> backupEntry(VrsTextureEntry entry) async {
     final timestamp = DateTime.now().millisecondsSinceEpoch;
     final parentDir = p.dirname(entry.directory);
-    final backupPath = p.join(parentDir, 'UTT_Backups', '${entry.stem}_$timestamp');
+    String backupPath = p.join(parentDir, 'UTT_Backups', '${entry.stem}_$timestamp');
+    bool isTempFallback = false;
     
-    final dir = io.Directory(backupPath);
-    if (!await dir.exists()) {
-      await dir.create(recursive: true);
+    try {
+      final dir = io.Directory(backupPath);
+      if (!await dir.exists()) {
+        await dir.create(recursive: true);
+      }
+    } catch (e) {
+      if (io.Platform.isMacOS && e is io.PathAccessException) {
+        debugPrint('UTT_DEBUG: Primary backup location failed, falling back to temp: $e');
+        final tempDir = await getTemporaryDirectory();
+        backupPath = p.join(tempDir.path, 'UTT_Backups', '${entry.stem}_$timestamp');
+        isTempFallback = true;
+        final dir = io.Directory(backupPath);
+        if (!await dir.exists()) {
+          await dir.create(recursive: true);
+        }
+      } else {
+        rethrow;
+      }
     }
 
     await _copyIfExist(entry.vrsPath, p.join(backupPath, p.basename(entry.vrsPath)));
@@ -21,7 +39,7 @@ class BackupService {
       await _copyIfExist(entry.canvasPath!, p.join(backupPath, p.basename(entry.canvasPath!)));
     }
 
-    return backupPath;
+    return isTempFallback ? 'TEMP_FALLBACK:$backupPath' : backupPath;
   }
 
   static Future<void> _copyIfExist(String src, String dest) async {

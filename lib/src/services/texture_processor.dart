@@ -1,9 +1,10 @@
 import 'dart:io' as io;
 import 'dart:math' as math;
-import 'dart:typed_data';
+import 'package:flutter/foundation.dart';
 import 'package:image/image.dart' as img;
 import 'package:path/path.dart' as p;
 import 'package:zstandard/zstandard.dart';
+import 'package:file_picker/file_picker.dart';
 import 'swizzle_logic.dart';
 import 'bc_codec.dart';
 import 'color_utils.dart';
@@ -74,25 +75,25 @@ class TextureProcessor {
   }
 
   static Future<Uint8List> zstdDecompress(String path) async {
-    print('UTT_DEBUG: Attempting to decompress: $path');
+    debugPrint('UTT_DEBUG: Attempting to decompress: $path');
     try {
       final file = io.File(path);
       if (!await file.exists()) {
-        print('UTT_DEBUG: File does not exist at $path');
+        debugPrint('UTT_DEBUG: File does not exist at $path');
         throw Exception('File not found');
       }
       final compressed = await file.readAsBytes();
-      print('UTT_DEBUG: Read ${compressed.length} compressed bytes');
+      debugPrint('UTT_DEBUG: Read ${compressed.length} compressed bytes');
       final decompressed = await _zstd.decompress(compressed);
       if (decompressed == null) {
-        print('UTT_DEBUG: Zstd decompression returned null');
+        debugPrint('UTT_DEBUG: Zstd decompression returned null');
         throw Exception('Decompression failed');
       }
-      print('UTT_DEBUG: Decompressed successfully to ${decompressed.length} bytes');
+      debugPrint('UTT_DEBUG: Decompressed successfully to ${decompressed.length} bytes');
       return decompressed;
     } catch (e, stack) {
-      print('UTT_DEBUG: Decompression error: $e');
-      print('UTT_DEBUG: Stacktrace: $stack');
+      debugPrint('UTT_DEBUG: Decompression error: $e');
+      debugPrint('UTT_DEBUG: Stacktrace: $stack');
       rethrow;
     }
   }
@@ -165,6 +166,53 @@ class TextureProcessor {
     );
   }
 
+  static Future<void> exportToPng(img.Image image, String originalPath) async {
+    // Use file_picker to select save location
+    String? outputPath = await FilePicker.saveFile(
+      dialogTitle: 'Export Texture as PNG',
+      fileName: '${p.basenameWithoutExtension(p.basenameWithoutExtension(originalPath))}.png',
+      type: FileType.custom,
+      allowedExtensions: ['png'],
+    );
+
+    if (outputPath != null) {
+      if (!outputPath.endsWith('.png')) outputPath += '.png';
+      final pngBytes = img.encodePng(image);
+      await io.File(outputPath).writeAsBytes(Uint8List.fromList(pngBytes));
+    }
+  }
+
+  static Future<bool> checkDirectoryWritable(String directoryPath) async {
+    try {
+      final testFile = io.File(p.join(directoryPath, '.utt_permission_test'));
+      await testFile.writeAsString('test');
+      await testFile.delete();
+      return true;
+    } catch (e) {
+      debugPrint('UTT_DEBUG: Directory $directoryPath is not writable: $e');
+      return false;
+    }
+  }
+
+  static Future<void> _safeWrite(String path, Uint8List bytes) async {
+    final file = io.File(path);
+    try {
+      // Direct write attempt
+      await file.writeAsBytes(bytes);
+    } catch (e) {
+      debugPrint('UTT_DEBUG: Direct write failed for $path, trying temp file strategy: $e');
+      // Temp file strategy
+      final tempDir = io.Directory.systemTemp;
+      final tempFile = io.File(p.join(tempDir.path, 'utt_temp_${DateTime.now().microsecondsSinceEpoch}'));
+      await tempFile.writeAsBytes(bytes);
+      if (await file.exists()) {
+        await file.delete();
+      }
+      await tempFile.copy(path);
+      await tempFile.delete();
+    }
+  }
+
   static Future<void> importPng({
     required String pngPath,
     required String destStem,
@@ -193,7 +241,7 @@ class TextureProcessor {
       if (!noSrgb) ColorUtils.convertSrgbToLinear(canvasRgba);
       final swizzled = SwizzleLogic.swizzleBlockLinear(canvasRgba, canvasW, canvasH, 4, defaultBlockHeight);
       final compressed = await zstdCompress(swizzled, zstdLevel);
-      await io.File('$destStem.canvas.zs').writeAsBytes(compressed);
+      await _safeWrite('$destStem.canvas.zs', compressed);
     }
 
     {
@@ -214,7 +262,7 @@ class TextureProcessor {
         baseBuffer: originalSwizzled,
       );
       final compressed = await zstdCompress(swizzled, zstdLevel);
-      await io.File('$destStem.ugctex.zs').writeAsBytes(compressed);
+      await _safeWrite('$destStem.ugctex.zs', compressed);
     }
 
     if (writeThumb) {
@@ -225,7 +273,7 @@ class TextureProcessor {
       final bc3Blocks = BcCodec.bc3Encode(thumbRgba, thumbW, thumbH);
       final swizzled = SwizzleLogic.swizzleBlockLinear(bc3Blocks, thumbW ~/ 4, thumbH ~/ 4, 16, thumbBlockHeight);
       final compressed = await zstdCompress(swizzled, zstdLevel);
-      await io.File('${destStem}_Thumb_ugctex.zs').writeAsBytes(compressed);
+      await _safeWrite('${destStem}_Thumb_ugctex.zs', compressed);
     }
   }
 }
