@@ -53,7 +53,7 @@ class SettingsView extends ConsumerWidget {
           ),
           const ListTile(
             title: Text('Version'),
-            subtitle: Text('1.0.0 (UTT Refactor)'),
+            subtitle: Text('0.1.1 (UTT Refactor)'),
           ),
           const ListTile(
             title: Text('Description'),
