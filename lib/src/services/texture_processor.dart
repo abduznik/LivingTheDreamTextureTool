@@ -215,18 +215,21 @@ class TextureProcessor {
     }
   }
 
-  static Future<void> importPng({
-    required String pngPath,
+  static Future<void> importImage({
+    required Uint8List imageBytes,
     required String destStem,
     required bool writeThumb,
     required bool writeCanvas,
     bool noSrgb = false,
     String? originalVrsPath,
   }) async {
-    final absolutePngPath = p.absolute(pngPath);
-    final srcFile = await io.File(absolutePngPath).readAsBytes();
-    img.Image? srcImage = img.decodeImage(srcFile);
-    if (srcImage == null) throw Exception('Failed to decode PNG');
+    LogService.log('TextureProcessor: Decoding image bytes...');
+    img.Image? srcImage = img.decodeImage(imageBytes);
+    if (srcImage == null) {
+      LogService.log('TextureProcessor: Failed to decode image bytes');
+      throw Exception('Failed to decode image');
+    }
+    LogService.log('TextureProcessor: Decoded image ${srcImage.width}x${srcImage.height}');
 
     VrsLayout layout;
     Uint8List? originalSwizzled;
@@ -245,21 +248,25 @@ class TextureProcessor {
     if (writeCanvas) {
       const canvasW = 256, canvasH = 256;
       img.Image canvasImage = img.copyResize(srcImage, width: canvasW, height: canvasH);
-      Uint8List canvasRgba = canvasImage.toUint8List();
+      Uint8List canvasRgba = canvasImage.getBytes(order: img.ChannelOrder.rgba);
+      LogService.log('TextureProcessor: Canvas RGBA size: ${canvasRgba.length}');
       if (!noSrgb) ColorUtils.convertSrgbToLinear(canvasRgba);
       final swizzled = SwizzleLogic.swizzleBlockLinear(canvasRgba, canvasW, canvasH, 4, defaultBlockHeight);
       final compressed = await zstdCompress(swizzled, zstdLevel);
+      LogService.log('TextureProcessor: Canvas compressed size: ${compressed.length}');
       await _safeWrite('$destStem.canvas.zs', compressed);
     }
 
     {
       img.Image vrsImage = img.copyResize(srcImage, width: layout.width, height: layout.height);
-      Uint8List vrsRgba = vrsImage.toUint8List();
+      Uint8List vrsRgba = vrsImage.getBytes(order: img.ChannelOrder.rgba);
+      LogService.log('TextureProcessor: Main RGBA size: ${vrsRgba.length} (${layout.width}x${layout.height})');
       if (!noSrgb) ColorUtils.convertSrgbToLinear(vrsRgba);
 
       final encodedBlocks = layout.format == TextureFormat.bc3
           ? BcCodec.bc3Encode(vrsRgba, layout.width, layout.height)
           : BcCodec.bc1Encode(vrsRgba, layout.width, layout.height);
+      LogService.log('TextureProcessor: Encoded blocks size: ${encodedBlocks.length}');
 
       final swizzled = SwizzleLogic.swizzleBlockLinear(
         encodedBlocks,
@@ -269,18 +276,22 @@ class TextureProcessor {
         layout.blockHeight,
         baseBuffer: originalSwizzled,
       );
+      LogService.log('TextureProcessor: Swizzled size: ${swizzled.length}');
       final compressed = await zstdCompress(swizzled, zstdLevel);
+      LogService.log('TextureProcessor: Main compressed size: ${compressed.length}');
       await _safeWrite('$destStem.ugctex.zs', compressed);
     }
 
     if (writeThumb) {
       const thumbW = 256, thumbH = 256;
       img.Image thumbImage = img.copyResize(srcImage, width: thumbW, height: thumbH, interpolation: img.Interpolation.cubic);
-      Uint8List thumbRgba = thumbImage.toUint8List();
+      Uint8List thumbRgba = thumbImage.getBytes(order: img.ChannelOrder.rgba);
+      LogService.log('TextureProcessor: Thumb RGBA size: ${thumbRgba.length}');
       if (!noSrgb) ColorUtils.convertSrgbToLinear(thumbRgba);
       final bc3Blocks = BcCodec.bc3Encode(thumbRgba, thumbW, thumbH);
       final swizzled = SwizzleLogic.swizzleBlockLinear(bc3Blocks, thumbW ~/ 4, thumbH ~/ 4, 16, thumbBlockHeight);
       final compressed = await zstdCompress(swizzled, zstdLevel);
+      LogService.log('TextureProcessor: Thumb compressed size: ${compressed.length}');
       await _safeWrite('${destStem}_Thumb_ugctex.zs', compressed);
     }
   }

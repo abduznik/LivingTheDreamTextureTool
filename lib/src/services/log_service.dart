@@ -10,6 +10,10 @@ class LogService {
     try {
       final tempDir = await getTemporaryDirectory();
       _logFile = io.File(p.join(tempDir.path, 'utt_session.log'));
+      final cacheDir = io.Directory(_logFile!.parent.path);
+      if (!await cacheDir.exists()) {
+        await cacheDir.create(recursive: true);
+      }
       // Clear previous session log
       if (await _logFile!.exists()) {
         await _logFile!.delete();

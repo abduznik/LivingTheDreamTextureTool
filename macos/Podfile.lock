@@ -28,7 +28,7 @@ SPEC CHECKSUMS:
   file_picker: 7584aae6fa07a041af2b36a2655122d42f578c1a
   FlutterMacOS: d0db08ddef1a9af05a5ec4b724367152bb0500b1
   shared_preferences_foundation: 7036424c3d8ec98dfe75ff1667cb0cd531ec82bb
-  zstandard_macos: 2eda6d8b9dbae63f0b119d495ac8d8e8c8473435
+  zstandard_macos: 931e1e39f1d6a2f2630a3e2957b0b6e86a17fc32
 
 PODFILE CHECKSUM: 54d867c82ac51cbd61b565781b9fada492027009
 

@@ -7,7 +7,7 @@ import 'log_service.dart';
 class BackupService {
   static Future<String> backupEntry(VrsTextureEntry entry) async {
     final timestamp = DateTime.now().millisecondsSinceEpoch;
-    final parentDir = p.dirname(entry.directory);
+    final parentDir = entry.directory;
     String backupPath = p.join(parentDir, 'UTT_Backups', '${entry.stem}_$timestamp');
     bool isTempFallback = false;
     

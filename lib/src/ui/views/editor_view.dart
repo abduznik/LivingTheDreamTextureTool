@@ -59,12 +59,12 @@ class _EditorViewState extends ConsumerState<EditorView> {
     if (savedPath == null) return;
 
     String? selectedDirectory = await FilePicker.getDirectoryPath(
-      dialogTitle: 'Unlock Ryujinx Folder Access',
+      dialogTitle: 'Authorize Folder Access',
       initialDirectory: savedPath,
     );
 
     if (selectedDirectory != null) {
-      LogService.log('Sandbox Bridge Successful: Folder Authorized.');
+      LogService.log('Folder Authorized: $selectedDirectory');
       if (mounted) {
         setState(() {
           _status = 'Folder Authorized!';
@@ -103,7 +103,7 @@ class _EditorViewState extends ConsumerState<EditorView> {
     try {
       result = await FilePicker.pickFiles(
         type: FileType.custom,
-        allowedExtensions: ['png', 'jpg', 'jpeg', 'bmp'],
+        allowedExtensions: ['png', 'jpg', 'jpeg', 'bmp', 'webp', 'tga', 'tiff'],
         allowMultiple: false,
         withReadStream: false,
       );
@@ -151,9 +151,12 @@ class _EditorViewState extends ConsumerState<EditorView> {
     setState(() => _status = 'Importing...');
 
     try {
-      await TextureProcessor.importPng(
-        pngPath: absolutePickedPath,
-        destStem: _selectedEntry!.stem,
+      final absoluteDestStem = p.join(_selectedEntry!.directory, _selectedEntry!.stem);
+      LogService.log('Starting import to: $absoluteDestStem');
+      
+      await TextureProcessor.importImage(
+        imageBytes: editedBytes,
+        destStem: absoluteDestStem,
         writeThumb: regenerateThumb,
         writeCanvas: _selectedEntry!.hasCanvas,
         originalVrsPath: _selectedEntry!.vrsPath,
@@ -267,12 +270,12 @@ class _EditorViewState extends ConsumerState<EditorView> {
                         const Icon(Icons.lock_open, color: Colors.orange, size: 64),
                         const SizedBox(height: 24),
                         const Text(
-                          'Unlock Ryujinx Folder Access',
+                          'Authorize Ryujinx Folder Access',
                           style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold),
                         ),
                         const SizedBox(height: 12),
                         const Text(
-                          'macOS requires one-time permission to access the save directory.',
+                          'macOS requires one-time permission to access the selected directory.',
                           textAlign: TextAlign.center,
                           style: TextStyle(color: Colors.white70),
                         ),

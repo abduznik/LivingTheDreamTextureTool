@@ -3,7 +3,7 @@ description: "A Flutter-based desktop utility for hardware-accelerated bit-manip
 homepage: "https://github.com/abduznik/universal-texture-tool"
 publish_to: 'none'
 
-version: 0.1.1+1
+version: 0.1.2
 
 environment:
   sdk: ^3.11.1

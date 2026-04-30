@@ -19,21 +19,25 @@ class DirectoryProcessor {
       const thumbSuffix = '_Thumb_ugctex.zs';
       const canvasSuffix = '.canvas.zs';
 
-      // Recursive scan to find all .zs files
       final List<io.File> allFiles = [];
-      
-      allFiles.addAll(
-        rootDir
-            .listSync(recursive: true, followLinks: false)
-            .whereType<io.File>()
-            .where((f) {
-          final pathLower = f.path.toLowerCase();
-          return pathLower.endsWith('.zs') &&
-              !pathLower.contains('backups') &&
-              !pathLower.contains('utt_backups');
-        }),
-      );
 
+      void scan(io.Directory dir) {
+        for (final entity in dir.listSync(recursive: false, followLinks: false)) {
+          if (entity is io.Directory) {
+            final name = p.basename(entity.path);
+            if (name != 'UTT_Backups' && name != 'Backup') {
+              scan(entity);
+            }
+          } else if (entity is io.File) {
+            final pathLower = entity.path.toLowerCase();
+            if (pathLower.endsWith('.zs')) {
+              allFiles.add(entity);
+            }
+          }
+        }
+      }
+
+      scan(rootDir);
       // Group files by their directory to handle multiple texture folders
       final mainFiles = allFiles
           .where((f) => f.path.toLowerCase().endsWith(ugctexSuffix) &&
